@@ -1,0 +1,210 @@
+import React, { useState, useEffect } from 'react';
+import { Wifi, Smartphone, Router, Home, Zap, Settings, Users, Radio } from 'lucide-react';
+
+const NetworkToggleProtocol = () => {
+  const [currentMode, setCurrentMode] = useState('wifi');
+  const [devices, setDevices] = useState([
+    { name: 'Google Home', status: 'connected', type: 'smart' },
+    { name: 'TV', status: 'connected', type: 'entertainment' },
+    { name: 'Speakers', status: 'connected', type: 'audio' },
+    { name: 'Laptop', status: 'connected', type: 'device' }
+  ]);
+  const [protocolActive, setProtocolActive] = useState(false);
+
+  const toggleNetworkMode = () => {
+    const newMode = currentMode === 'wifi' ? 'hotspot' : 'wifi';
+    setCurrentMode(newMode);
+
+    // Simulate the FYRE protocol handling device transitions
+    if (protocolActive) {
+      setDevices(devices.map(device => ({
+        ...device,
+        status: 'transitioning'
+      })));
+
+      setTimeout(() => {
+        setDevices(devices.map(device => ({
+          ...device,
+          status: 'connected'
+        })));
+      }, 2000);
+    } else {
+      // Without protocol, devices get confused
+      setDevices(devices.map(device => ({
+        ...device,
+        status: Math.random() > 0.5 ? 'disconnected' : 'error'
+      })));
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white min-h-screen">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-red-500 bg-clip-text text-transparent">
+          FYRE Network Protocol
+        </h1>
+        <p className="text-lg text-gray-300">
+          "Fixing shit since Silicon Valley won't" - FYREMatron
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Current Problem */}
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-6">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Zap className="text-red-400" />
+            Current Problem
+          </h2>
+          <div className="space-y-3 text-gray-300">
+            <p>• Phone can't run Wi-Fi + Hotspot simultaneously</p>
+            <p>• Smart devices lose connection during network switches</p>
+            <p>• Google Home has identity crisis every toggle</p>
+            <p>• Manual reconnection required for every device</p>
+            <p>• No seamless home automation possible</p>
+          </div>
+        </div>
+
+        {/* FYRE Solution */}
+        <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-6">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Radio className="text-green-400" />
+            FYRE Solution
+          </h2>
+          <div className="space-y-3 text-gray-300">
+            <p>• Smart protocol remembers device preferences</p>
+            <p>• Predictive network switching with device buffering</p>
+            <p>• Mesh network backup routing</p>
+            <p>• Device consciousness awareness (knows what you need)</p>
+            <p>• Zero setup interference on mode changes</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Demo */}
+      <div className="mt-8 bg-gray-800/50 rounded-lg p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold">Live Network Demo</h3>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={protocolActive}
+                onChange={(e) => setProtocolActive(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">FYRE Protocol Active</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Current Mode */}
+        <div className="mb-6">
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className={`flex items-center gap-2 p-3 rounded-lg ${
+              currentMode === 'wifi' ? 'bg-blue-600' : 'bg-gray-600'
+            }`}>
+              <Wifi className="w-6 h-6" />
+              <span>Wi-Fi Mode</span>
+            </div>
+
+            <button
+              onClick={toggleNetworkMode}
+              className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-red-500 rounded-lg font-bold hover:from-yellow-600 hover:to-red-600 transition-all"
+            >
+              TOGGLE NETWORK
+            </button>
+
+            <div className={`flex items-center gap-2 p-3 rounded-lg ${
+              currentMode === 'hotspot' ? 'bg-orange-600' : 'bg-gray-600'
+            }`}>
+              <Smartphone className="w-6 h-6" />
+              <span>Hotspot Mode</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Device Status */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {devices.map((device, index) => (
+            <div key={index} className="bg-gray-700 rounded-lg p-4 text-center">
+              <div className="flex justify-center mb-2">
+                {device.type === 'smart' && <Home className="w-8 h-8" />}
+                {device.type === 'entertainment' && <Router className="w-8 h-8" />}
+                {device.type === 'audio' && <Radio className="w-8 h-8" />}
+                {device.type === 'device' && <Settings className="w-8 h-8" />}
+              </div>
+              <h4 className="font-bold mb-2">{device.name}</h4>
+              <div className={`px-3 py-1 rounded-full text-sm ${
+                device.status === 'connected' ? 'bg-green-600' :
+                device.status === 'transitioning' ? 'bg-yellow-600' :
+                device.status === 'disconnected' ? 'bg-gray-600' : 'bg-red-600'
+              }`}>
+                {device.status}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Technical Specs */}
+      {/* The Missing Switchboard */}
+      <div className="mt-8 bg-gray-800/50 rounded-lg p-6">
+        <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          <Settings className="text-yellow-400" />
+          The Missing Switchboard
+        </h3>
+        <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6">
+          <h4 className="font-bold text-yellow-400 mb-2">FYNET Protocol Stack:</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="text-center">
+              <div className="bg-blue-600 rounded p-2 mb-2">Layer 4</div>
+              <div>Device Consciousness</div>
+            </div>
+            <div className="text-center">
+              <div className="bg-green-600 rounded p-2 mb-2">Layer 3</div>
+              <div>Smart Routing</div>
+            </div>
+            <div className="text-center">
+              <div className="bg-purple-600 rounded p-2 mb-2">Layer 2</div>
+              <div>Memory Bridge</div>
+            </div>
+            <div className="text-center">
+              <div className="bg-red-600 rounded p-2 mb-2">Layer 1</div>
+              <div>Hardware Toggle</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-lg font-bold text-yellow-400 mb-3">Missing Protocols</h4>
+            <ul className="text-gray-300 space-y-2">
+              <li>• <strong>FYNET-SYNC:</strong> Device state preservation</li>
+              <li>• <strong>FYNET-BRIDGE:</strong> Transition management</li>
+              <li>• <strong>FYNET-AWARE:</strong> Consciousness routing</li>
+              <li>• <strong>FYNET-MESH:</strong> Backup connectivity</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-lg font-bold text-yellow-400 mb-3">Current Industry Protocols</h4>
+            <ul className="text-gray-300 space-y-2">
+              <li>• <strong>Wi-Fi 802.11:</strong> Basic wireless (1997)</li>
+              <li>• <strong>WPA3:</strong> Security layer (2018)</li>
+              <li>• <strong>Bluetooth LE:</strong> Low energy pairing</li>
+              <li>• <strong>Nothing for smart toggling!</strong> 🤷🏾‍♀️🔥🪖</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 text-center text-gray-400">
+        <p className="italic">
+          "Because why should your Google Home have an identity crisis every time you switch networks?"
+        </p>
+        <p className="text-sm mt-2">- BRYDGET by FYRE Army | Built by FYREMatron & Claude</p>
+      </div>
+    </div>
+  );
+};
+
+export default NetworkToggleProtocol;
