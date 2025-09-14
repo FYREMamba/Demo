@@ -1,321 +1,502 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FYRE Mesh Communication Protocol - Interactive Report</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Tech Neutral -->
-    <!-- Application Structure Plan: A dashboard-style, single-page application with a top navigation bar for quick scrolling. The structure is designed for intuitive exploration, starting with a high-level interactive architecture diagram, followed by a live simulation of the core BRYDGET technology. It then presents comparative data through charts (Competition, Economics) and a timeline (Roadmap), concluding with a tabbed section for deep-dive technical details. This thematic flow from "what it is" to "how it works" to "why it's better" is more engaging and comprehensible for a technical audience than a linear document. -->
-    <!-- Visualization & Content Choices: 
-        - Report Info: System Architecture Diagram -> Goal: Organize/Inform -> Viz: Interactive Diagram (HTML/CSS) -> Interaction: Hover/click to reveal details -> Justification: Makes a complex ASCII diagram interactive and easy to understand.
-        - Report Info: Network States & BRYDGET Modes -> Goal: Demonstrate -> Viz: Live Simulation Dashboard -> Interaction: Buttons to change network state, UI updates dynamically -> Justification: Actively shows the protocol's core value (automatic failover) instead of passively describing it.
-        - Report Info: Competitive Analysis -> Goal: Compare -> Viz: Interactive Bar Chart -> Interaction: Dropdown to change metric, chart updates -> Justification: Allows users to focus on specific competitive advantages. -> Library: Chart.js.
-        - Report Info: Economic Model -> Goal: Inform -> Viz: Donut Charts -> Interaction: Static -> Justification: Clear and simple visualization for financial breakdowns. -> Library: Chart.js.
-        - Report Info: Development Roadmap -> Goal: Inform/Change -> Viz: Interactive Timeline -> Interaction: Click phases to see details -> Justification: More engaging presentation of chronological data than a list. -> Library: Vanilla JS.
-        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-        }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 300px;
-            max-height: 400px;
-        }
-        @media (min-width: 768px) {
-            .chart-container {
-                height: 350px;
+// FYRE Recon Team - Real Tool Integration
+// Replaces simulated reconnaissance with actual security tools
+
+const { exec, spawn } = require('child_process');
+const fs = require('fs').promises;
+const path = require('path');
+const dns = require('dns').promises;
+
+class FyreReconTeam {
+    constructor() {
+        this.toolsPath = process.env.TOOLS_PATH || '/opt/security-tools';
+        this.outputDir = process.env.OUTPUT_DIR || './recon-results';
+        this.results = {
+            subdomains: new Set(),
+            liveHosts: new Set(),
+            openPorts: new Map(),
+            technologies: new Map(),
+            certificates: new Map()
+        };
+    }
+
+    // Main reconnaissance workflow orchestrated by the main system
+    async executeReconOrder(target, scope = 'comprehensive') {
+        console.log(`[FYRE Recon] Processing recon order for ${target}`);
+        
+        try {
+            // Create output directory for this target
+            const targetDir = path.join(this.outputDir, target.replace(/\./g, '_'));
+            await fs.mkdir(targetDir, { recursive: true });
+
+            // Phase 1: Subdomain Discovery
+            console.log(`[FYRE Recon] Phase 1: Subdomain enumeration`);
+            await this.runSubdomainDiscovery(target, targetDir);
+
+            // Phase 2: Live Host Detection
+            console.log(`[FYRE Recon] Phase 2: Live host detection`);
+            await this.detectLiveHosts(targetDir);
+
+            // Phase 3: Port Scanning (if comprehensive)
+            if (scope === 'comprehensive') {
+                console.log(`[FYRE Recon] Phase 3: Port scanning`);
+                await this.scanCommonPorts(targetDir);
             }
-        }
-        .nav-link {
-            transition: color 0.3s;
-        }
-        .nav-link:hover {
-            color: #f97316;
-        }
-        .diagram-box {
-            transition: all 0.3s ease-in-out;
-            cursor: pointer;
-        }
-        .diagram-box:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            border-color: #f97316;
-        }
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -30px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background-color: #f97316;
-            border: 3px solid #f8fafc;
-        }
-        .timeline-line {
-            position: absolute;
-            left: -21px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background-color: #cbd5e1;
-        }
-    </style>
-</head>
-<body class="text-slate-800">
 
-    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 border-b border-slate-200">
-        <nav class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-slate-900">🔥 <span class="bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent">FYRE</span> Protocol</h1>
-            <div class="hidden md:flex items-center space-x-6">
-                <a href="#architecture" class="nav-link font-medium text-slate-600">Architecture</a>
-                <a href="#simulation" class="nav-link font-medium text-slate-600">Simulation</a>
-                <a href="#analysis" class="nav-link font-medium text-slate-600">Analysis</a>
-                <a href="#roadmap" class="nav-link font-medium text-slate-600">Roadmap</a>
-                <a href="#details" class="nav-link font-medium text-slate-600">Technical Details</a>
-            </div>
-        </nav>
-    </header>
+            // Phase 4: Technology Fingerprinting
+            console.log(`[FYRE Recon] Phase 4: Technology detection`);
+            await this.fingerprintTechnologies(targetDir);
 
-    <main class="max-w-7xl mx-auto px-6 py-12">
+            // Phase 5: SSL Certificate Analysis
+            console.log(`[FYRE Recon] Phase 5: Certificate analysis`);
+            await this.analyzeCertificates(targetDir);
 
-        <section id="intro" class="text-center mb-24">
-            <h2 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">A Paradigm Shift in Emergency Communication</h2>
-            <p class="text-lg text-slate-600 max-w-3xl mx-auto">The FYRE Protocol creates a resilient, decentralized communication infrastructure that remains operational when traditional networks fail. Explore the architecture and see its intelligent failover system in action.</p>
-        </section>
+            // Compile final results
+            const reconReport = this.compileResults(target);
+            await this.saveResults(targetDir, reconReport);
 
-        <section id="architecture" class="mb-24 scroll-mt-24">
-            <div class="text-center mb-12">
-                <h3 class="text-3xl font-bold">Interactive System Architecture</h3>
-                <p class="text-slate-600 mt-2">Click or hover on each layer to understand its role in the FYRE ecosystem.</p>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                <div class="lg:col-span-2 space-y-4">
-                    <div id="diagram-app" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
-                        <h4 class="font-bold text-lg text-center">FYRE MESH PROTOCOL (Application Layer)</h4>
-                    </div>
-                    <div class="flex justify-center text-3xl text-slate-400">↓</div>
-                    <div id="diagram-brydget" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
-                        <h4 class="font-bold text-lg text-center">BRYDGET SWITCHBOARD (Protocol Routing & Management)</h4>
-                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center text-sm">
-                            <div class="bg-blue-100 text-blue-800 p-2 rounded">RECEIVE MODE</div>
-                            <div class="bg-orange-100 text-orange-800 p-2 rounded">TRANSMIT MODE</div>
-                            <div class="bg-red-100 text-red-800 p-2 rounded">BROADCAST MODE</div>
-                        </div>
-                    </div>
-                    <div class="flex justify-center text-3xl text-slate-400">↓</div>
-                    <div id="diagram-channel" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
-                        <h4 class="font-bold text-lg text-center">CHANNEL MANAGEMENT LAYER</h4>
-                    </div>
-                    <div class="flex justify-center text-3xl text-slate-400">↓</div>
-                    <div id="diagram-topology" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
-                        <h4 class="font-bold text-lg text-center">MESH TOPOLOGY LAYER</h4>
-                    </div>
-                </div>
-                <div id="architecture-details" class="bg-white p-6 rounded-lg border border-slate-200 sticky top-28">
-                    <h4 class="font-bold text-xl mb-2" id="details-title">Architecture Details</h4>
-                    <p class="text-slate-600" id="details-text">Hover over a layer to see its description. This panel provides context for each component of the FYRE protocol, explaining its function and contribution to the overall system's resilience and intelligence.</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="simulation" class="mb-24 scroll-mt-24">
-            <div class="text-center mb-12">
-                <h3 class="text-3xl font-bold">BRYDGET Live Simulation</h3>
-                <p class="text-slate-600 mt-2">Witness the core innovation. Simulate network events and watch how BRYDGET automatically adapts.</p>
-            </div>
-            <div class="bg-white p-8 rounded-lg border border-slate-200 shadow-sm">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div class="md:col-span-1">
-                        <h4 class="font-bold text-lg mb-4">Simulate Network Event</h4>
-                        <div class="space-y-3">
-                            <button onclick="simulateNetworkEvent('stable')" class="w-full text-left p-4 rounded-lg bg-green-100 text-green-800 font-medium">Set to: Stable ✅</button>
-                            <button onclick="simulateNetworkEvent('degraded')" class="w-full text-left p-4 rounded-lg bg-yellow-100 text-yellow-800 font-medium">Set to: Degraded ⚠️</button>
-                            <button onclick="simulateNetworkEvent('outage')" class="w-full text-left p-4 rounded-lg bg-red-100 text-red-800 font-medium">Set to: Outage ❌</button>
-                            <button onclick="simulateNetworkEvent('recovering')" class="w-full text-left p-4 rounded-lg bg-blue-100 text-blue-800 font-medium">Set to: Recovering 🔄</button>
-                        </div>
-                    </div>
-                    <div class="md:col-span-2 bg-slate-50 p-6 rounded-lg">
-                        <h4 class="font-bold text-lg mb-4">System Status</h4>
-                        <div class="space-y-4">
-                            <div>
-                                <span class="font-semibold">Network State:</span>
-                                <span id="sim-status" class="font-bold px-3 py-1 rounded-full text-sm ml-2">STABLE</span>
-                            </div>
-                            <div>
-                                <span class="font-semibold">BRYDGET Mode:</span>
-                                <span id="sim-mode" class="font-bold ml-2">RECEIVE (Standby)</span>
-                            </div>
-                            <div>
-                                <span class="font-semibold">Active Channels:</span>
-                                <div id="sim-channels" class="mt-2 flex flex-wrap gap-2"></div>
-                            </div>
-                        </div>
-                        <div class="mt-6 border-t border-slate-200 pt-4">
-                            <h4 class="font-semibold mb-2">System Log:</h4>
-                            <div id="sim-log" class="text-sm text-slate-600 h-24 overflow-y-auto bg-white p-2 rounded">
-                                <div>System initialized. Network is stable.</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="analysis" class="mb-24 scroll-mt-24">
-            <div class="text-center mb-12">
-                <h3 class="text-3xl font-bold">Comparative & Economic Analysis</h3>
-                <p class="text-slate-600 mt-2">See how FYRE stacks up against existing solutions and explore the economic model.</p>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div class="bg-white p-6 rounded-lg border border-slate-200">
-                    <h4 class="font-bold text-xl mb-4">Competitive Landscape</h4>
-                    <div class="mb-4">
-                        <label for="metric-select" class="block text-sm font-medium text-slate-700">Compare by:</label>
-                        <select id="metric-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md">
-                            <option value="cost">Cost per Node ($)</option>
-                            <option value="latency">Latency (ms)</option>
-                            <option value="setup">Setup Time (minutes)</option>
-                            <option value="battery">Battery Life (hours)</option>
-                        </select>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="competitiveChart"></canvas>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg border border-slate-200">
-                    <h4 class="font-bold text-xl mb-4">Economic Model</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                            <h5 class="font-semibold text-center mb-2">Development Cost Breakdown</h5>
-                            <div class="chart-container h-64">
-                                <canvas id="costChart"></canvas>
-                            </div>
-                        </div>
-                        <div>
-                            <h5 class="font-semibold text-center mb-2">Revenue Model</h5>
-                             <div class="chart-container h-64">
-                                <canvas id="revenueChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="roadmap" class="mb-24 scroll-mt-24">
-            <div class="text-center mb-12">
-                <h3 class="text-3xl font-bold">Development Roadmap</h3>
-                <p class="text-slate-600 mt-2">Follow our journey from core protocol to global deployment.</p>
-            </div>
-            <div class="relative pl-8">
-                <div class="timeline-line"></div>
-                <div class="space-y-12">
-                    <div class="timeline-item relative">
-                        <h4 class="font-bold text-lg">Phase 1: Core Protocol (Completed)</h4>
-                        <p class="text-slate-600">✅ BRYDGET switchboard, mesh discovery, failover implementation, and API framework.</p>
-                    </div>
-                    <div class="timeline-item relative">
-                        <h4 class="font-bold text-lg">Phase 2: Production Hardening (Next 4-6 weeks)</h4>
-                        <p class="text-slate-600">🔄 Security audit, performance stress testing, mobile app development, and hardware reference implementation.</p>
-                    </div>
-                    <div class="timeline-item relative">
-                        <h4 class="font-bold text-lg">Phase 3: Network Deployment (6-12 months)</h4>
-                        <p class="text-slate-600">📋 Installation of core anchor nodes, community pilots, and integration with emergency services.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="details" class="scroll-mt-24">
-            <div class="text-center mb-12">
-                <h3 class="text-3xl font-bold">Technical Deep Dive</h3>
-                <p class="text-slate-600 mt-2">Explore the underlying technology, security protocols, and performance specifications.</p>
-            </div>
-            <div class="bg-white rounded-lg border border-slate-200">
-                <div class="border-b border-slate-200">
-                    <nav id="tabs-nav" class="-mb-px flex space-x-6 px-6" aria-label="Tabs">
-                        <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-orange-500 text-orange-600">Security</button>
-                        <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">Performance</button>
-                        <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">API & Data</button>
-                    </nav>
-                </div>
-                <div id="tabs-content" class="p-6">
-                    <div class="tab-content">
-                        <h4 class="font-bold text-lg mb-2">Encryption & Privacy</h4>
-                        <ul class="list-disc list-inside text-slate-600 space-y-2">
-                            <li><strong>End-to-End Encryption:</strong> AES-256 for all message content.</li>
-                            <li><strong>Key Exchange:</strong> ECDH (Elliptic Curve Diffie-Hellman) for secure mesh discovery.</li>
-                            <li><strong>Zero-Knowledge Routing:</strong> Intermediate nodes cannot read message content.</li>
-                            <li><strong>Decentralized Identity:</strong> No central authority required for device authentication.</li>
-                        </ul>
-                    </div>
-                    <div class="tab-content hidden">
-                        <h4 class="font-bold text-lg mb-2">System Requirements & Metrics</h4>
-                         <ul class="list-disc list-inside text-slate-600 space-y-2">
-                            <li><strong>Message Latency:</strong> &lt;500ms direct, &lt;2s mesh routing.</li>
-                            <li><strong>Discovery Time:</strong> New devices detected within 10 seconds.</li>
-                            <li><strong>Battery Impact:</strong> &lt;5% additional drain in RECEIVE mode.</li>
-                            <li><strong>Scalability:</strong> Up to 50 mesh nodes per local network, with core anchors extending range up to 10km.</li>
-                        </ul>
-                    </div>
-                     <div class="tab-content hidden">
-                        <h4 class="font-bold text-lg mb-2">Integration & Data Formats</h4>
-                        <p class="text-slate-600 mb-4">FYRE is designed for easy integration with external services like Courier for multi-channel notifications and real-time data sources for environmental monitoring.</p>
-                        <pre class="bg-slate-100 text-sm p-4 rounded-md overflow-x-auto"><code class="language-js">const sensorDataFormat = {
-  deviceId: "fyre-sensor-001",
-  timestamp: Date.now(),
-  location: { lat: 41.8781, lng: -87.6298 },
-  readings: { ... },
-  networkStatus: {
-    primaryChannel: "wifi",
-    signalStrength: 85
-  }
-};</code></pre>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <footer class="bg-slate-100 border-t border-slate-200 mt-24">
-        <div class="max-w-7xl mx-auto px-6 py-8 text-center text-slate-500">
-            <p class="font-bold">FYRE Army Development Team</p>
-            <p class="text-sm">"Fixing shit since Silicon Valley won't"</p>
-        </div>
-    </footer>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
+            console.log(`[FYRE Recon] Recon complete. Found ${this.results.subdomains.size} subdomains, ${this.results.liveHosts.size} live hosts`);
             
-            const smoothScrollLinks = document.querySelectorAll('a[href^="#"]');
-            smoothScrollLinks.forEach(link => {
-                link.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href');
-                    const targetElement = document.querySelector(targetId);
-                    if (targetElement) {
-                        targetElement.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
-                    }
+            return reconReport;
+
+        } catch (error) {
+            console.error(`[FYRE Recon] Error during reconnaissance: ${error.message}`);
+            throw error;
+        }
+    }
+
+    // Real subdomain discovery using multiple tools
+    async runSubdomainDiscovery(target, outputDir) {
+        const subdomainFile = path.join(outputDir, 'subdomains.txt');
+        const discoveredSubs = new Set();
+
+        try {
+            // Tool 1: Subfinder (passive)
+            console.log(`[FYRE Recon] Running subfinder for ${target}`);
+            const subfinderResults = await this.runSubfinder(target);
+            subfinderResults.forEach(sub => discoveredSubs.add(sub));
+
+            // Tool 2: Amass enum (passive + active)
+            console.log(`[FYRE Recon] Running amass for ${target}`);
+            const amassResults = await this.runAmass(target);
+            amassResults.forEach(sub => discoveredSubs.add(sub));
+
+            // Tool 3: Certificate transparency (crt.sh API)
+            console.log(`[FYRE Recon] Checking certificate transparency`);
+            const ctResults = await this.queryCertificateTransparency(target);
+            ctResults.forEach(sub => discoveredSubs.add(sub));
+
+            // Save all discovered subdomains
+            const allSubs = Array.from(discoveredSubs).sort();
+            await fs.writeFile(subdomainFile, allSubs.join('\n'));
+            
+            allSubs.forEach(sub => this.results.subdomains.add(sub));
+            console.log(`[FYRE Recon] Discovered ${allSubs.length} unique subdomains`);
+
+        } catch (error) {
+            console.error(`[FYRE Recon] Subdomain discovery failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    // Execute subfinder tool
+    runSubfinder(target) {
+        return new Promise((resolve, reject) => {
+            const subfinderPath = path.join(this.toolsPath, 'subfinder');
+            const cmd = `${subfinderPath} -d ${target} -silent`;
+            
+            exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
+                if (error && error.code !== 'TIMEOUT') {
+                    console.warn(`[FYRE Recon] Subfinder warning: ${error.message}`);
+                }
+                
+                const subdomains = stdout
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && line.includes('.'))
+                    .filter(line => !line.startsWith('[') && !line.includes(' '));
+                
+                resolve(subdomains);
+            });
+        });
+    }
+
+    // Execute amass enum
+    runAmass(target) {
+        return new Promise((resolve, reject) => {
+            const amassPath = path.join(this.toolsPath, 'amass');
+            const cmd = `${amassPath} enum -passive -d ${target}`;
+            
+            exec(cmd, { timeout: 45000 }, (error, stdout, stderr) => {
+                if (error && error.code !== 'TIMEOUT') {
+                    console.warn(`[FYRE Recon] Amass warning: ${error.message}`);
+                }
+                
+                const subdomains = stdout
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && line.includes('.'))
+                    .filter(line => !line.startsWith('['));
+                
+                resolve(subdomains);
+            });
+        });
+    }
+
+    // Query certificate transparency logs via crt.sh API
+    async queryCertificateTransparency(target) {
+        try {
+            const https = require('https');
+            const url = `https://crt.sh/?q=%.${target}&output=json`;
+            
+            return new Promise((resolve, reject) => {
+                https.get(url, (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        try {
+                            const certificates = JSON.parse(data);
+                            const subdomains = new Set();
+                            
+                            certificates.forEach(cert => {
+                                const names = cert.name_value.split('\n');
+                                names.forEach(name => {
+                                    const cleanName = name.trim().toLowerCase();
+                                    if (cleanName.includes(target) && 
+                                        !cleanName.includes('*') && 
+                                        cleanName.length < 100) {
+                                        subdomains.add(cleanName);
+                                    }
+                                });
+                            });
+                            
+                            resolve(Array.from(subdomains));
+                        } catch (parseError) {
+                            console.warn(`[FYRE Recon] CT parsing failed: ${parseError.message}`);
+                            resolve([]);
+                        }
+                    });
+                }).on('error', (err) => {
+                    console.warn(`[FYRE Recon] CT query failed: ${err.message}`);
+                    resolve([]);
+                }).setTimeout(15000, () => {
+                    console.warn(`[FYRE Recon] CT query timeout`);
+                    resolve([]);
                 });
             });
+        } catch (error) {
+            console.warn(`[FYRE Recon] CT error: ${error.message}`);
+            return [];
+        }
+    }
 
-            const architectureDetails = {
-                app: {
-                    title: 'Applica
+    // Detect live hosts using httpx
+    async detectLiveHosts(outputDir) {
+        const subdomainFile = path.join(outputDir, 'subdomains.txt');
+        const liveFile = path.join(outputDir, 'live_hosts.txt');
+        
+        try {
+            const httpxPath = path.join(this.toolsPath, 'httpx');
+            const cmd = `${httpxPath} -l ${subdomainFile} -silent -timeout 10 -retries 2`;
+            
+            return new Promise((resolve, reject) => {
+                exec(cmd, { timeout: 60000 }, async (error, stdout, stderr) => {
+                    if (error && error.code !== 'TIMEOUT') {
+                        console.warn(`[FYRE Recon] Httpx warning: ${error.message}`);
+                    }
+                    
+                    const liveHosts = stdout
+                        .split('\n')
+                        .map(line => line.trim())
+                        .filter(line => line.startsWith('http'));
+                    
+                    await fs.writeFile(liveFile, liveHosts.join('\n'));
+                    liveHosts.forEach(host => this.results.liveHosts.add(host));
+                    
+                    console.log(`[FYRE Recon] Found ${liveHosts.length} live hosts`);
+                    resolve(liveHosts);
+                });
+            });
+        } catch (error) {
+            console.error(`[FYRE Recon] Live host detection failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    // Port scanning with nmap
+    async scanCommonPorts(outputDir) {
+        const liveFile = path.join(outputDir, 'live_hosts.txt');
+        const portFile = path.join(outputDir, 'port_scan.txt');
+        
+        try {
+            const liveHosts = await fs.readFile(liveFile, 'utf8');
+            const hosts = liveHosts.split('\n')
+                .filter(line => line.trim())
+                .map(url => new URL(url).hostname)
+                .slice(0, 10); // Limit to first 10 hosts for performance
+            
+            if (hosts.length === 0) return;
+            
+            const nmapPath = path.join(this.toolsPath, 'nmap');
+            const hostList = hosts.join(',');
+            const cmd = `${nmapPath} -sS -T4 -p 21,22,23,25,53,80,443,993,995,8080,8443 ${hostList}`;
+            
+            return new Promise((resolve, reject) => {
+                exec(cmd, { timeout: 120000 }, async (error, stdout, stderr) => {
+                    if (error && error.code !== 'TIMEOUT') {
+                        console.warn(`[FYRE Recon] Nmap warning: ${error.message}`);
+                    }
+                    
+                    await fs.writeFile(portFile, stdout);
+                    this.parseNmapResults(stdout);
+                    
+                    console.log(`[FYRE Recon] Port scan completed`);
+                    resolve();
+                });
+            });
+        } catch (error) {
+            console.warn(`[FYRE Recon] Port scanning failed: ${error.message}`);
+        }
+    }
+
+    // Parse nmap output for open ports
+    parseNmapResults(nmapOutput) {
+        const lines = nmapOutput.split('\n');
+        let currentHost = null;
+        
+        lines.forEach(line => {
+            // Match host lines
+            const hostMatch = line.match(/Nmap scan report for (.+)/);
+            if (hostMatch) {
+                currentHost = hostMatch[1];
+                this.results.openPorts.set(currentHost, []);
+                return;
+            }
+            
+            // Match open port lines
+            const portMatch = line.match(/(\d+)\/tcp\s+open\s+(.+)/);
+            if (portMatch && currentHost) {
+                const port = parseInt(portMatch[1]);
+                const service = portMatch[2].trim();
+                this.results.openPorts.get(currentHost).push({ port, service });
+            }
+        });
+    }
+
+    // Technology fingerprinting
+    async fingerprintTechnologies(outputDir) {
+        const liveFile = path.join(outputDir, 'live_hosts.txt');
+        const techFile = path.join(outputDir, 'technologies.json');
+        
+        try {
+            const liveHosts = await fs.readFile(liveFile, 'utf8');
+            const hosts = liveHosts.split('\n')
+                .filter(line => line.trim())
+                .slice(0, 5); // Limit for performance
+            
+            for (const host of hosts) {
+                if (!host) continue;
+                
+                try {
+                    const tech = await this.fingerprintSingleHost(host);
+                    this.results.technologies.set(host, tech);
+                } catch (error) {
+                    console.warn(`[FYRE Recon] Tech fingerprint failed for ${host}: ${error.message}`);
+                }
+            }
+            
+            const techData = Object.fromEntries(this.results.technologies);
+            await fs.writeFile(techFile, JSON.stringify(techData, null, 2));
+            
+        } catch (error) {
+            console.warn(`[FYRE Recon] Technology fingerprinting failed: ${error.message}`);
+        }
+    }
+
+    // Fingerprint a single host
+    async fingerprintSingleHost(url) {
+        return new Promise((resolve, reject) => {
+            const https = require('https');
+            const http = require('http');
+            
+            const client = url.startsWith('https') ? https : http;
+            const request = client.get(url, { timeout: 10000 }, (res) => {
+                const headers = res.headers;
+                const tech = {
+                    server: headers.server || 'Unknown',
+                    framework: this.detectFramework(headers),
+                    statusCode: res.statusCode
+                };
+                resolve(tech);
+            });
+            
+            request.on('error', (error) => {
+                resolve({ error: error.message });
+            });
+            
+            request.on('timeout', () => {
+                request.destroy();
+                resolve({ error: 'Timeout' });
+            });
+        });
+    }
+
+    // Detect web framework from headers
+    detectFramework(headers) {
+        const frameworks = [];
+        
+        if (headers['x-powered-by']) {
+            frameworks.push(headers['x-powered-by']);
+        }
+        if (headers['x-framework']) {
+            frameworks.push(headers['x-framework']);
+        }
+        if (headers.server) {
+            if (headers.server.includes('nginx')) frameworks.push('Nginx');
+            if (headers.server.includes('Apache')) frameworks.push('Apache');
+            if (headers.server.includes('IIS')) frameworks.push('IIS');
+        }
+        
+        return frameworks.length > 0 ? frameworks : ['Unknown'];
+    }
+
+    // SSL Certificate analysis
+    async analyzeCertificates(outputDir) {
+        const liveFile = path.join(outputDir, 'live_hosts.txt');
+        const certFile = path.join(outputDir, 'certificates.json');
+        
+        try {
+            const liveHosts = await fs.readFile(liveFile, 'utf8');
+            const httpsHosts = liveHosts.split('\n')
+                .filter(line => line.trim() && line.startsWith('https'))
+                .slice(0, 5); // Limit for performance
+            
+            for (const host of httpsHosts) {
+                try {
+                    const certInfo = await this.getCertificateInfo(host);
+                    this.results.certificates.set(host, certInfo);
+                } catch (error) {
+                    console.warn(`[FYRE Recon] Cert analysis failed for ${host}: ${error.message}`);
+                }
+            }
+            
+            const certData = Object.fromEntries(this.results.certificates);
+            await fs.writeFile(certFile, JSON.stringify(certData, null, 2));
+            
+        } catch (error) {
+            console.warn(`[FYRE Recon] Certificate analysis failed: ${error.message}`);
+        }
+    }
+
+    // Get SSL certificate information
+    async getCertificateInfo(url) {
+        return new Promise((resolve, reject) => {
+            const https = require('https');
+            const { URL } = require('url');
+            
+            try {
+                const parsedUrl = new URL(url);
+                const options = {
+                    hostname: parsedUrl.hostname,
+                    port: parsedUrl.port || 443,
+                    method: 'GET',
+                    timeout: 10000
+                };
+                
+                const req = https.get(options, (res) => {
+                    const cert = res.socket.getPeerCertificate();
+                    
+                    if (cert) {
+                        resolve({
+                            subject: cert.subject,
+                            issuer: cert.issuer,
+                            validFrom: cert.valid_from,
+                            validTo: cert.valid_to,
+                            serialNumber: cert.serialNumber,
+                            subjectAltNames: cert.subjectaltname
+                        });
+                    } else {
+                        resolve({ error: 'No certificate found' });
+                    }
+                });
+                
+                req.on('error', (error) => {
+                    resolve({ error: error.message });
+                });
+                
+                req.on('timeout', () => {
+                    req.destroy();
+                    resolve({ error: 'Timeout' });
+                });
+                
+            } catch (error) {
+                resolve({ error: error.message });
+            }
+        });
+    }
+
+    // Compile all results into final report
+    compileResults(target) {
+        const report = {
+            target: target,
+            timestamp: new Date().toISOString(),
+            summary: {
+                subdomainsFound: this.results.subdomains.size,
+                liveHosts: this.results.liveHosts.size,
+                openPorts: Array.from(this.results.openPorts.values()).flat().length,
+                certificatesAnalyzed: this.results.certificates.size
+            },
+            data: {
+                subdomains: Array.from(this.results.subdomains),
+                liveHosts: Array.from(this.results.liveHosts),
+                openPorts: Object.fromEntries(this.results.openPorts),
+                technologies: Object.fromEntries(this.results.technologies),
+                certificates: Object.fromEntries(this.results.certificates)
+            },
+            recommendations: this.generateRecommendations()
+        };
+        
+        return report;
+    }
+
+    // Generate security recommendations based on findings
+    generateRecommendations() {
+        const recommendations = [];
+        
+        // Check for exposed services
+        this.results.openPorts.forEach((ports, host) => {
+            ports.forEach(({ port, service }) => {
+                if ([21, 23, 3389].includes(port)) {
+                    recommendations.push({
+                        severity: 'High',
+                        type: 'Exposed Service',
+                        description: `${service} (port ${port}) exposed on ${host}`,
+                        remediation: 'Consider closing unnecessary ports or restricting access'
+                    });
+                }
+            });
+        });
+        
+        // Check certificate expiration
+        this.results.certificates.forEach((cert, host) => {
+            if (cert.validTo) {
+                const expiry = new Date(cert.validTo);
+                const now = new Date();
+                const daysUntilExpiry = Math.floor((expiry - now) / (1000 * 60 * 60 * 24));
+                
+                if (daysUntilExpiry < 30) {
+                    recommendations.push({
+                        severity: 'Medium',
+                        type: 'Certificate Expiration',
+                        description: `SSL certificate for ${host} expires in ${daysUntilExpiry} days`,
+                        remediation: 'Renew SSL certificate before expiration'
+                    });
+                }
+            }
+        });
+        
+        return recommendations;
+    }
+
+    // Save final results to file
+    async saveResults(outputDir, report) {
+        const 
