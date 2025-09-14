@@ -1,210 +1,487 @@
-import React, { useState, useEffect } from 'react';
-import { Wifi, Smartphone, Router, Home, Zap, Settings, Users, Radio } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useReducer } from 'react';
+import { Wifi, Radio, AlertTriangle, CheckCircle, Clock, Zap, Signal, Database, Globe, Phone, Send, Users, MessageCircle, Radar, Bluetooth, Smartphone } from 'lucide-react';
 
-const NetworkToggleProtocol = () => {
-  const [currentMode, setCurrentMode] = useState('wifi');
-  const [devices, setDevices] = useState([
-    { name: 'Google Home', status: 'connected', type: 'smart' },
-    { name: 'TV', status: 'connected', type: 'entertainment' },
-    { name: 'Speakers', status: 'connected', type: 'audio' },
-    { name: 'Laptop', status: 'connected', type: 'device' }
-  ]);
-  const [protocolActive, setProtocolActive] = useState(false);
+const initialState = {
+  networkStatus: 'stable',
+  activeChannels: ['wifi'],
+  meshMode: 'receive', // receive, transmit, broadcast
+  connectedDevices: [
+    { id: 'fyre-001', name: 'FYRE-Node-Alpha', distance: '50m', strength: 85, type: 'anchor' },
+    { id: 'fyre-002', name: 'FYRE-Edge-Beta', distance: '120m', strength: 67, type: 'edge' },
+    { id: 'fyre-003', name: 'Mobile-Device-Gamma', distance: '25m', strength: 92, type: 'user' }
+  ],
+  messages: [
+    { id: 1, from: 'FYRE-Node-Alpha', text: 'Mesh network initialized', timestamp: new Date(Date.now() - 300000), type: 'system', hops: 1 },
+    { id: 2, from: 'Emergency-Broadcast', text: 'Weather alert: High winds detected in sector 7', timestamp: new Date(Date.now() - 180000), type: 'emergency', hops: 3 },
+  ],
+  contacts: [
+    { id: 'contact-001', name: 'FYRE Command', deviceId: 'fyre-001', status: 'online' },
+    { id: 'contact-002', name: 'Field Unit Alpha', deviceId: 'fyre-002', status: 'mesh' },
+    { id: 'contact-003', name: 'Mobile Team', deviceId: 'fyre-003', status: 'offline' }
+  ],
+  currentMessage: '',
+  selectedContact: null,
+  protocolActive: true,
+  emergencyMode: false,
+  isScanning: false,
+};
 
-  const toggleNetworkMode = () => {
-    const newMode = currentMode === 'wifi' ? 'hotspot' : 'wifi';
-    setCurrentMode(newMode);
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_NETWORK_STATUS':
+      return { ...state, networkStatus: action.payload };
+    case 'SET_ACTIVE_CHANNELS':
+      return { ...state, activeChannels: action.payload };
+    case 'SET_MESH_MODE':
+      return { ...state, meshMode: action.payload };
+    case 'ADD_DEVICE':
+      return { ...state, connectedDevices: action.payload, isScanning: false };
+    case 'SET_IS_SCANNING':
+      return { ...state, isScanning: action.payload };
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [action.payload, ...state.messages] };
+    case 'SET_CURRENT_MESSAGE':
+      return { ...state, currentMessage: action.payload };
+    case 'SET_SELECTED_CONTACT':
+      return { ...state, selectedContact: action.payload };
+    case 'SET_PROTOCOL_ACTIVE':
+      return { ...state, protocolActive: action.payload };
+    case 'SET_EMERGENCY_MODE':
+      return { ...state, emergencyMode: action.payload };
+    default:
+      return state;
+  }
+};
 
-    // Simulate the FYRE protocol handling device transitions
-    if (protocolActive) {
-      setDevices(devices.map(device => ({
-        ...device,
-        status: 'transitioning'
-      })));
+const FYREMeshMessenger = () => {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const { 
+    networkStatus, 
+    activeChannels, 
+    meshMode, 
+    connectedDevices, 
+    messages, 
+    contacts, 
+    currentMessage, 
+    selectedContact, 
+    protocolActive, 
+    emergencyMode, 
+    isScanning
+  } = state;
 
+  const addSystemMessage = useCallback((text, type = 'system') => {
+    const newMessage = {
+      id: Date.now(),
+      from: 'FYRE-System',
+      text,
+      timestamp: new Date(),
+      type,
+      hops: 0
+    };
+    dispatch({ type: 'ADD_MESSAGE', payload: newMessage });
+  }, [dispatch]);
+
+  const performMeshScan = useCallback(() => {
+    dispatch({ type: 'SET_IS_SCANNING', payload: true });
+    
+    // Simulate mesh device discovery
+    setTimeout(() => {
+      if (Math.random() > 0.7) {
+        const newDevice = {
+          id: `fyre-${Date.now()}`,
+          name: `FYRE-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+          distance: `${Math.floor(Math.random() * 200 + 10)}m`,
+          strength: Math.floor(Math.random() * 40 + 60),
+          type: ['anchor', 'edge', 'user'][Math.floor(Math.random() * 3)]
+        };
+        
+        const exists = connectedDevices.find(d => d.id === newDevice.id);
+        if (!exists) {
+          addSystemMessage(`New device discovered: ${newDevice.name}`);
+          dispatch({ type: 'ADD_DEVICE', payload: [...connectedDevices, newDevice] });
+        }
+      }
+      dispatch({ type: 'SET_IS_SCANNING', payload: false });
+    }, 2000);
+  }, [dispatch, connectedDevices, addSystemMessage]);
+
+  useEffect(() => {
+    const scanInterval = setInterval(() => {
+      if (protocolActive) {
+        performMeshScan();
+      }
+    }, 5000);
+
+    return () => clearInterval(scanInterval);
+  }, [protocolActive, performMeshScan]);
+
+  const sendMessage = () => {
+    if (!currentMessage.trim()) return;
+    
+    const recipient = selectedContact ? contacts.find(c => c.id === selectedContact)?.name : 'Broadcast';
+    const newMessage = {
+      id: Date.now(),
+      from: 'You',
+      to: recipient,
+      text: currentMessage,
+      timestamp: new Date(),
+      type: emergencyMode ? 'emergency' : 'message',
+      hops: meshMode === 'transmit' ? calculateHops() : 0,
+      channel: getActiveChannel()
+    };
+
+    dispatch({ type: 'ADD_MESSAGE', payload: newMessage });
+    
+    // Simulate message routing
+    if (networkStatus === 'outage' && protocolActive) {
       setTimeout(() => {
-        setDevices(devices.map(device => ({
-          ...device,
-          status: 'connected'
-        })));
-      }, 2000);
-    } else {
-      // Without protocol, devices get confused
-      setDevices(devices.map(device => ({
-        ...device,
-        status: Math.random() > 0.5 ? 'disconnected' : 'error'
-      })));
+        addSystemMessage(`Message routed via ${newMessage.hops} mesh hops`, 'routing');
+      }, 1000);
+    } else if (networkStatus !== 'outage') {
+      setTimeout(() => {
+        addSystemMessage('Message sent via primary network', 'success');
+      }, 500);
+    }
+
+    dispatch({ type: 'SET_CURRENT_MESSAGE', payload: '' });
+  };
+
+  const calculateHops = () => {
+    return Math.floor(Math.random() * 4 + 1);
+  };
+
+  const getActiveChannel = () => {
+    if (activeChannels.includes('wifi')) return 'WiFi';
+    if (activeChannels.includes('cellular')) return 'Cellular';
+    if (activeChannels.includes('bluetooth')) return 'Bluetooth Mesh';
+    return 'Emergency SMS';
+  };
+
+  const broadcastEmergency = () => {
+    const emergencyMsg = {
+      id: Date.now(),
+      from: 'EMERGENCY-BROADCAST',
+      text: 'EMERGENCY: Testing emergency broadcast system - All units respond',
+      timestamp: new Date(),
+      type: 'emergency',
+      hops: 99, // Max propagation
+      channel: 'All Channels'
+    };
+    
+    dispatch({ type: 'ADD_MESSAGE', payload: emergencyMsg });
+    addSystemMessage('Emergency broadcast initiated across all mesh nodes', 'emergency');
+  };
+
+  const simulateNetworkEvent = () => {
+    const states = ['stable', 'degraded', 'outage', 'recovering'];
+    const currentIndex = states.indexOf(networkStatus);
+    const nextState = states[(currentIndex + 1) % states.length];
+    dispatch({ type: 'SET_NETWORK_STATUS', payload: nextState });
+
+    // Update active channels and messaging behavior
+    switch(nextState) {
+      case 'stable':
+        dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['wifi'] });
+        addSystemMessage('Network restored - Switching to primary channels', 'success');
+        break;
+      case 'degraded':
+        dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['wifi', 'cellular'] });
+        addSystemMessage('Network degraded - Activating backup channels', 'warning');
+        break;
+      case 'outage':
+        if (protocolActive) {
+          dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['bluetooth', 'mesh'] });
+          addSystemMessage('OUTAGE DETECTED - Switching to mesh-only mode', 'error');
+          dispatch({ type: 'SET_MESH_MODE', payload: 'transmit' }); // Auto-switch to transmit mode during outage
+        } else {
+          dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: [] });
+          addSystemMessage('OUTAGE - No mesh protocol active!', 'error');
+        }
+        break;
+      case 'recovering':
+        dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['cellular', 'wifi'] });
+        addSystemMessage('Network recovering - Restoring primary channels', 'info');
+        dispatch({ type: 'SET_MESH_MODE', payload: 'receive' }); // Switch back to receive mode
+        break;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'stable': return 'text-green-400 bg-green-900/30 border-green-500/50';
+      case 'degraded': return 'text-yellow-400 bg-yellow-900/30 border-yellow-500/50';
+      case 'outage': return 'text-red-400 bg-red-900/30 border-red-500/50';
+      case 'recovering': return 'text-blue-400 bg-blue-900/30 border-blue-500/50';
+      default: return 'text-gray-400 bg-gray-900/30 border-gray-500/50';
+    }
+  };
+
+  const getMeshModeColor = (mode) => {
+    switch(mode) {
+      case 'receive': return 'bg-blue-600';
+      case 'transmit': return 'bg-orange-600';
+      case 'broadcast': return 'bg-red-600';
+      default: return 'bg-gray-600';
+    }
+  };
+
+  const getDeviceTypeIcon = (type) => {
+    switch(type) {
+      case 'anchor': return <Radio className="w-4 h-4" />;
+      case 'edge': return <Signal className="w-4 h-4" />;
+      case 'user': return <Smartphone className="w-4 h-4" />;
+      default: return <Database className="w-4 h-4" />;
+    }
+  };
+
+  const getMessageTypeColor = (type) => {
+    switch(type) {
+      case 'emergency': return 'bg-red-900/50 border-red-500';
+      case 'system': return 'bg-blue-900/50 border-blue-500';
+      case 'routing': return 'bg-yellow-900/50 border-yellow-500';
+      case 'success': return 'bg-green-900/50 border-green-500';
+      case 'message': return 'bg-gray-800 border-gray-600';
+      default: return 'bg-gray-700 border-gray-500';
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white min-h-screen">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-red-500 bg-clip-text text-transparent">
-          FYRE Network Protocol
-        </h1>
-        <p className="text-lg text-gray-300">
-          "Fixing shit since Silicon Valley won't" - FYREMatron
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Current Problem */}
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Zap className="text-red-400" />
-            Current Problem
-          </h2>
-          <div className="space-y-3 text-gray-300">
-            <p>• Phone can't run Wi-Fi + Hotspot simultaneously</p>
-            <p>• Smart devices lose connection during network switches</p>
-            <p>• Google Home has identity crisis every toggle</p>
-            <p>• Manual reconnection required for every device</p>
-            <p>• No seamless home automation possible</p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-orange-900/20 to-black text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
+            🔥 FYRE Mesh Messenger
+          </h1>
+          <p className="text-lg text-gray-300">
+            "Decentralized Communication When Everything Else Fails" - BRYDGET Protocol
+          </p>
         </div>
 
-        {/* FYRE Solution */}
-        <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Radio className="text-green-400" />
-            FYRE Solution
-          </h2>
-          <div className="space-y-3 text-gray-300">
-            <p>• Smart protocol remembers device preferences</p>
-            <p>• Predictive network switching with device buffering</p>
-            <p>• Mesh network backup routing</p>
-            <p>• Device consciousness awareness (knows what you need)</p>
-            <p>• Zero setup interference on mode changes</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Live Demo */}
-      <div className="mt-8 bg-gray-800/50 rounded-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-bold">Live Network Demo</h3>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={protocolActive}
-                onChange={(e) => setProtocolActive(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm">FYRE Protocol Active</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Current Mode */}
-        <div className="mb-6">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <div className={`flex items-center gap-2 p-3 rounded-lg ${
-              currentMode === 'wifi' ? 'bg-blue-600' : 'bg-gray-600'
-            }`}>
-              <Wifi className="w-6 h-6" />
-              <span>Wi-Fi Mode</span>
+        {/* Control Dashboard */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          
+          {/* Network Status */}
+          <div className={`rounded-lg p-6 border ${getStatusColor(networkStatus)}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Network</h3>
+              <Radio className="w-6 h-6" />
             </div>
+            <div className="text-2xl font-bold mb-2 capitalize">{networkStatus}</div>
+            <div className="text-sm text-gray-400">
+              Channels: {activeChannels.length}
+            </div>
+          </div>
 
-            <button
-              onClick={toggleNetworkMode}
-              className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-red-500 rounded-lg font-bold hover:from-yellow-600 hover:to-red-600 transition-all"
+          {/* BRYDGET Switchboard Mode */}
+          <div className="bg-orange-900/30 border border-orange-500/50 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-orange-400">Switchboard</h3>
+              <Zap className="w-6 h-6 text-orange-400" />
+            </div>
+            <select 
+              value={meshMode} 
+              onChange={(e) => dispatch({ type: 'SET_MESH_MODE', payload: e.target.value })}
+              className="w-full bg-gray-800 border border-orange-500 rounded p-2 text-orange-400"
             >
-              TOGGLE NETWORK
-            </button>
-
-            <div className={`flex items-center gap-2 p-3 rounded-lg ${
-              currentMode === 'hotspot' ? 'bg-orange-600' : 'bg-gray-600'
-            }`}>
-              <Smartphone className="w-6 h-6" />
-              <span>Hotspot Mode</span>
+              <option value="receive">RECEIVE Mode</option>
+              <option value="transmit">TRANSMIT Mode</option>
+              <option value="broadcast">BROADCAST Mode</option>
+            </select>
+            <div className={`mt-2 px-3 py-1 rounded-full text-xs text-center ${getMeshModeColor(meshMode)}`}>
+              {meshMode.toUpperCase()} ACTIVE
             </div>
           </div>
-        </div>
 
-        {/* Device Status */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {devices.map((device, index) => (
-            <div key={index} className="bg-gray-700 rounded-lg p-4 text-center">
-              <div className="flex justify-center mb-2">
-                {device.type === 'smart' && <Home className="w-8 h-8" />}
-                {device.type === 'entertainment' && <Router className="w-8 h-8" />}
-                {device.type === 'audio' && <Radio className="w-8 h-8" />}
-                {device.type === 'device' && <Settings className="w-8 h-8" />}
-              </div>
-              <h4 className="font-bold mb-2">{device.name}</h4>
-              <div className={`px-3 py-1 rounded-full text-sm ${
-                device.status === 'connected' ? 'bg-green-600' :
-                device.status === 'transitioning' ? 'bg-yellow-600' :
-                device.status === 'disconnected' ? 'bg-gray-600' : 'bg-red-600'
-              }`}>
-                {device.status}
+          {/* Mesh Devices */}
+          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Mesh Nodes</h3>
+              <div className="flex items-center gap-2">
+                {isScanning && <Clock className="w-4 h-4 animate-spin" />}
+                <Users className="w-6 h-6" />
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="text-2xl font-bold mb-2">{connectedDevices.length}</div>
+            <div className="text-sm text-gray-400">
+              Auto-scanning {isScanning ? '...' : '✓'}
+            </div>
+          </div>
 
-      {/* Technical Specs */}
-      {/* The Missing Switchboard */}
-      <div className="mt-8 bg-gray-800/50 rounded-lg p-6">
-        <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Settings className="text-yellow-400" />
-          The Missing Switchboard
-        </h3>
-        <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6">
-          <h4 className="font-bold text-yellow-400 mb-2">FYNET Protocol Stack:</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="text-center">
-              <div className="bg-blue-600 rounded p-2 mb-2">Layer 4</div>
-              <div>Device Consciousness</div>
+          {/* Protocol Control */}
+          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">FYRE Protocol</h3>
+              <Database className="w-6 h-6" />
             </div>
-            <div className="text-center">
-              <div className="bg-green-600 rounded p-2 mb-2">Layer 3</div>
-              <div>Smart Routing</div>
-            </div>
-            <div className="text-center">
-              <div className="bg-purple-600 rounded p-2 mb-2">Layer 2</div>
-              <div>Memory Bridge</div>
-            </div>
-            <div className="text-center">
-              <div className="bg-red-600 rounded p-2 mb-2">Layer 1</div>
-              <div>Hardware Toggle</div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={protocolActive}
+                  onChange={(e) => dispatch({ type: 'SET_PROTOCOL_ACTIVE', payload: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">Mesh Active</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={emergencyMode}
+                  onChange={(e) => dispatch({ type: 'SET_EMERGENCY_MODE', payload: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-red-400">Emergency Mode</span>
+              </label>
             </div>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-lg font-bold text-yellow-400 mb-3">Missing Protocols</h4>
-            <ul className="text-gray-300 space-y-2">
-              <li>• <strong>FYNET-SYNC:</strong> Device state preservation</li>
-              <li>• <strong>FYNET-BRIDGE:</strong> Transition management</li>
-              <li>• <strong>FYNET-AWARE:</strong> Consciousness routing</li>
-              <li>• <strong>FYNET-MESH:</strong> Backup connectivity</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-bold text-yellow-400 mb-3">Current Industry Protocols</h4>
-            <ul className="text-gray-300 space-y-2">
-              <li>• <strong>Wi-Fi 802.11:</strong> Basic wireless (1997)</li>
-              <li>• <strong>WPA3:</strong> Security layer (2018)</li>
-              <li>• <strong>Bluetooth LE:</strong> Low energy pairing</li>
-              <li>• <strong>Nothing for smart toggling!</strong> 🤷🏾‍♀️🔥🪖</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+        {/* Main Messenger Interface */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Device Discovery & Contacts */}
+          <div className="space-y-6">
+            
+            {/* Mesh Device Discovery */}
+            <div className="bg-gray-800/50 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Radar className="text-orange-400" />
+                  Mesh Devices
+                </h3>
+                <button
+                  onClick={performMeshScan}
+                  className="px-3 py-1 bg-orange-600 rounded-lg text-sm hover:bg-orange-500"
+                  disabled={isScanning}
+                >
+                  {isScanning ? 'Scanning...' : 'Scan'}
+                </button>
+              </div>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {connectedDevices.map((device) => (
+                  <div key={device.id} className="bg-gray-700/50 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getDeviceTypeIcon(device.type)}
+                        <div>
+                          <div className="font-semibold text-sm">{device.name}</div>
+                          <div className="text-xs text-gray-400">{device.distance} • {device.strength}%</div>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs ${
+                        device.strength > 80 ? 'bg-green-600' : 
+                        device.strength > 60 ? 'bg-yellow-600' : 'bg-red-600'
+                      }`}>
+                        {device.type}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-      <div className="mt-6 text-center text-gray-400">
-        <p className="italic">
-          "Because why should your Google Home have an identity crisis every time you switch networks?"
-        </p>
-        <p className="text-sm mt-2">- BRYDGET by FYRE Army | Built by FYREMatron & Claude</p>
-      </div>
-    </div>
-  );
-};
+            {/* Contacts */}
+            <div className="bg-gray-800/50 rounded-lg p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Users className="text-orange-400" />
+                Contacts
+              </h3>
+              <div className="space-y-2">
+                {contacts.map((contact) => (
+                  <button
+                    key={contact.id}
+                    onClick={() => dispatch({ type: 'SET_SELECTED_CONTACT', payload: contact.id })}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      selectedContact === contact.id 
+                        ? 'bg-orange-900/50 border-orange-500' 
+                        : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold">{contact.name}</div>
+                      <div className={`px-2 py-1 rounded-full text-xs ${
+                        contact.status === 'online' ? 'bg-green-600' :
+                        contact.status === 'mesh' ? 'bg-yellow-600' : 'bg-gray-600'
+                      }`}>
+                        {contact.status}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
-export default NetworkToggleProtocol;
+          {/* Message Interface */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* Message Input */}
+            <div className="bg-gray-800/50 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <MessageCircle className="text-orange-400" />
+                  Send Message
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={broadcastEmergency}
+                    className="px-4 py-2 bg-red-600 rounded-lg text-sm hover:bg-red-500"
+                  >
+                    Emergency Broadcast
+                  </button>
+                  <button
+                    onClick={simulateNetworkEvent}
+                    className="px-4 py-2 bg-blue-600 rounded-lg text-sm hover:bg-blue-500"
+                  >
+                    Simulate Event
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">
+                    To: {selectedContact ? contacts.find(c => c.id === selectedContact)?.name : 'Broadcast All'}
+                  </label>
+                </div>
+                
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={currentMessage}
+                    onChange={(e) => dispatch({ type: 'SET_CURRENT_MESSAGE', payload: e.target.value })}
+                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    placeholder={emergencyMode ? "Emergency message..." : "Type your message..."}
+                    className={`flex-1 px-4 py-3 rounded-lg border ${
+                      emergencyMode 
+                        ? 'bg-red-900/30 border-red-500 text-red-400' 
+                        : 'bg-gray-700 border-gray-600'
+                    } focus:outline-none focus:border-orange-500`}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 rounded-lg font-semibold hover:from-orange-500 hover:to-red-500 flex items-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    Send
+                  </button>
+                </div>
+
+                <div className="text-sm text-gray-400">
+                  Mode: {meshMode.toUpperCase()} • Channel: {getActiveChannel()} • {emergencyMode ? 'EMERGENCY' : 'Normal'} Priority
+                </div>
+              </div>
+            </div>
+
+            {/* Message History */}
+            <div className="bg-gray-800/50 rounded-lg p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Clock className="text-orange-400" />
+                Message Log
+              </h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-400 py-8">
+                    
