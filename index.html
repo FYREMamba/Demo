@@ -1,487 +1,487 @@
-import React, { useState, useEffect, useCallback, useReducer } from 'react';
-import { Wifi, Radio, AlertTriangle, CheckCircle, Clock, Zap, Signal, Database, Globe, Phone, Send, Users, MessageCircle, Radar, Bluetooth, Smartphone } from 'lucide-react';
-
-const initialState = {
-  networkStatus: 'stable',
-  activeChannels: ['wifi'],
-  meshMode: 'receive', // receive, transmit, broadcast
-  connectedDevices: [
-    { id: 'fyre-001', name: 'FYRE-Node-Alpha', distance: '50m', strength: 85, type: 'anchor' },
-    { id: 'fyre-002', name: 'FYRE-Edge-Beta', distance: '120m', strength: 67, type: 'edge' },
-    { id: 'fyre-003', name: 'Mobile-Device-Gamma', distance: '25m', strength: 92, type: 'user' }
-  ],
-  messages: [
-    { id: 1, from: 'FYRE-Node-Alpha', text: 'Mesh network initialized', timestamp: new Date(Date.now() - 300000), type: 'system', hops: 1 },
-    { id: 2, from: 'Emergency-Broadcast', text: 'Weather alert: High winds detected in sector 7', timestamp: new Date(Date.now() - 180000), type: 'emergency', hops: 3 },
-  ],
-  contacts: [
-    { id: 'contact-001', name: 'FYRE Command', deviceId: 'fyre-001', status: 'online' },
-    { id: 'contact-002', name: 'Field Unit Alpha', deviceId: 'fyre-002', status: 'mesh' },
-    { id: 'contact-003', name: 'Mobile Team', deviceId: 'fyre-003', status: 'offline' }
-  ],
-  currentMessage: '',
-  selectedContact: null,
-  protocolActive: true,
-  emergencyMode: false,
-  isScanning: false,
-};
-
-const reducer = (state, action) => {
-  switch (action.type) {
-    case 'SET_NETWORK_STATUS':
-      return { ...state, networkStatus: action.payload };
-    case 'SET_ACTIVE_CHANNELS':
-      return { ...state, activeChannels: action.payload };
-    case 'SET_MESH_MODE':
-      return { ...state, meshMode: action.payload };
-    case 'ADD_DEVICE':
-      return { ...state, connectedDevices: action.payload, isScanning: false };
-    case 'SET_IS_SCANNING':
-      return { ...state, isScanning: action.payload };
-    case 'ADD_MESSAGE':
-      return { ...state, messages: [action.payload, ...state.messages] };
-    case 'SET_CURRENT_MESSAGE':
-      return { ...state, currentMessage: action.payload };
-    case 'SET_SELECTED_CONTACT':
-      return { ...state, selectedContact: action.payload };
-    case 'SET_PROTOCOL_ACTIVE':
-      return { ...state, protocolActive: action.payload };
-    case 'SET_EMERGENCY_MODE':
-      return { ...state, emergencyMode: action.payload };
-    default:
-      return state;
-  }
-};
-
-const FYREMeshMessenger = () => {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const { 
-    networkStatus, 
-    activeChannels, 
-    meshMode, 
-    connectedDevices, 
-    messages, 
-    contacts, 
-    currentMessage, 
-    selectedContact, 
-    protocolActive, 
-    emergencyMode, 
-    isScanning
-  } = state;
-
-  const addSystemMessage = useCallback((text, type = 'system') => {
-    const newMessage = {
-      id: Date.now(),
-      from: 'FYRE-System',
-      text,
-      timestamp: new Date(),
-      type,
-      hops: 0
-    };
-    dispatch({ type: 'ADD_MESSAGE', payload: newMessage });
-  }, [dispatch]);
-
-  const performMeshScan = useCallback(() => {
-    dispatch({ type: 'SET_IS_SCANNING', payload: true });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FYRE Army - Complete System Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/tone@14.7.58/build/Tone.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    // Simulate mesh device discovery
-    setTimeout(() => {
-      if (Math.random() > 0.7) {
-        const newDevice = {
-          id: `fyre-${Date.now()}`,
-          name: `FYRE-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-          distance: `${Math.floor(Math.random() * 200 + 10)}m`,
-          strength: Math.floor(Math.random() * 40 + 60),
-          type: ['anchor', 'edge', 'user'][Math.floor(Math.random() * 3)]
-        };
-        
-        const exists = connectedDevices.find(d => d.id === newDevice.id);
-        if (!exists) {
-          addSystemMessage(`New device discovered: ${newDevice.name}`);
-          dispatch({ type: 'ADD_DEVICE', payload: [...connectedDevices, newDevice] });
+    <style>
+        :root {
+            --fire-orange: #FF4500;
+            --burnt-orange: #CC5500;
+            --ember-red: #DC2626;
+            --flame-yellow: #FFA500;
+            --dark-void: #0a0a0f;
+            --deep-space: #1a1a2e;
         }
-      }
-      dispatch({ type: 'SET_IS_SCANNING', payload: false });
-    }, 2000);
-  }, [dispatch, connectedDevices, addSystemMessage]);
-
-  useEffect(() => {
-    const scanInterval = setInterval(() => {
-      if (protocolActive) {
-        performMeshScan();
-      }
-    }, 5000);
-
-    return () => clearInterval(scanInterval);
-  }, [protocolActive, performMeshScan]);
-
-  const sendMessage = () => {
-    if (!currentMessage.trim()) return;
-    
-    const recipient = selectedContact ? contacts.find(c => c.id === selectedContact)?.name : 'Broadcast';
-    const newMessage = {
-      id: Date.now(),
-      from: 'You',
-      to: recipient,
-      text: currentMessage,
-      timestamp: new Date(),
-      type: emergencyMode ? 'emergency' : 'message',
-      hops: meshMode === 'transmit' ? calculateHops() : 0,
-      channel: getActiveChannel()
-    };
-
-    dispatch({ type: 'ADD_MESSAGE', payload: newMessage });
-    
-    // Simulate message routing
-    if (networkStatus === 'outage' && protocolActive) {
-      setTimeout(() => {
-        addSystemMessage(`Message routed via ${newMessage.hops} mesh hops`, 'routing');
-      }, 1000);
-    } else if (networkStatus !== 'outage') {
-      setTimeout(() => {
-        addSystemMessage('Message sent via primary network', 'success');
-      }, 500);
-    }
-
-    dispatch({ type: 'SET_CURRENT_MESSAGE', payload: '' });
-  };
-
-  const calculateHops = () => {
-    return Math.floor(Math.random() * 4 + 1);
-  };
-
-  const getActiveChannel = () => {
-    if (activeChannels.includes('wifi')) return 'WiFi';
-    if (activeChannels.includes('cellular')) return 'Cellular';
-    if (activeChannels.includes('bluetooth')) return 'Bluetooth Mesh';
-    return 'Emergency SMS';
-  };
-
-  const broadcastEmergency = () => {
-    const emergencyMsg = {
-      id: Date.now(),
-      from: 'EMERGENCY-BROADCAST',
-      text: 'EMERGENCY: Testing emergency broadcast system - All units respond',
-      timestamp: new Date(),
-      type: 'emergency',
-      hops: 99, // Max propagation
-      channel: 'All Channels'
-    };
-    
-    dispatch({ type: 'ADD_MESSAGE', payload: emergencyMsg });
-    addSystemMessage('Emergency broadcast initiated across all mesh nodes', 'emergency');
-  };
-
-  const simulateNetworkEvent = () => {
-    const states = ['stable', 'degraded', 'outage', 'recovering'];
-    const currentIndex = states.indexOf(networkStatus);
-    const nextState = states[(currentIndex + 1) % states.length];
-    dispatch({ type: 'SET_NETWORK_STATUS', payload: nextState });
-
-    // Update active channels and messaging behavior
-    switch(nextState) {
-      case 'stable':
-        dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['wifi'] });
-        addSystemMessage('Network restored - Switching to primary channels', 'success');
-        break;
-      case 'degraded':
-        dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['wifi', 'cellular'] });
-        addSystemMessage('Network degraded - Activating backup channels', 'warning');
-        break;
-      case 'outage':
-        if (protocolActive) {
-          dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['bluetooth', 'mesh'] });
-          addSystemMessage('OUTAGE DETECTED - Switching to mesh-only mode', 'error');
-          dispatch({ type: 'SET_MESH_MODE', payload: 'transmit' }); // Auto-switch to transmit mode during outage
-        } else {
-          dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: [] });
-          addSystemMessage('OUTAGE - No mesh protocol active!', 'error');
-        }
-        break;
-      case 'recovering':
-        dispatch({ type: 'SET_ACTIVE_CHANNELS', payload: ['cellular', 'wifi'] });
-        addSystemMessage('Network recovering - Restoring primary channels', 'info');
-        dispatch({ type: 'SET_MESH_MODE', payload: 'receive' }); // Switch back to receive mode
-        break;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'stable': return 'text-green-400 bg-green-900/30 border-green-500/50';
-      case 'degraded': return 'text-yellow-400 bg-yellow-900/30 border-yellow-500/50';
-      case 'outage': return 'text-red-400 bg-red-900/30 border-red-500/50';
-      case 'recovering': return 'text-blue-400 bg-blue-900/30 border-blue-500/50';
-      default: return 'text-gray-400 bg-gray-900/30 border-gray-500/50';
-    }
-  };
-
-  const getMeshModeColor = (mode) => {
-    switch(mode) {
-      case 'receive': return 'bg-blue-600';
-      case 'transmit': return 'bg-orange-600';
-      case 'broadcast': return 'bg-red-600';
-      default: return 'bg-gray-600';
-    }
-  };
-
-  const getDeviceTypeIcon = (type) => {
-    switch(type) {
-      case 'anchor': return <Radio className="w-4 h-4" />;
-      case 'edge': return <Signal className="w-4 h-4" />;
-      case 'user': return <Smartphone className="w-4 h-4" />;
-      default: return <Database className="w-4 h-4" />;
-    }
-  };
-
-  const getMessageTypeColor = (type) => {
-    switch(type) {
-      case 'emergency': return 'bg-red-900/50 border-red-500';
-      case 'system': return 'bg-blue-900/50 border-blue-500';
-      case 'routing': return 'bg-yellow-900/50 border-yellow-500';
-      case 'success': return 'bg-green-900/50 border-green-500';
-      case 'message': return 'bg-gray-800 border-gray-600';
-      default: return 'bg-gray-700 border-gray-500';
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-orange-900/20 to-black text-white p-6">
-      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
-            🔥 FYRE Mesh Messenger
-          </h1>
-          <p className="text-lg text-gray-300">
-            "Decentralized Communication When Everything Else Fails" - BRYDGET Protocol
-          </p>
-        </div>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, var(--dark-void) 0%, var(--deep-space) 50%, #16213e 100%);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .orbitron { font-family: 'Orbitron', monospace; }
+        
+        /* Flame animations */
+        @keyframes flameFlicker {
+            0%, 100% { 
+                transform: scale(1) rotate(0deg);
+                filter: hue-rotate(0deg) brightness(1);
+            }
+            25% { 
+                transform: scale(1.1) rotate(2deg);
+                filter: hue-rotate(10deg) brightness(1.2);
+            }
+            50% { 
+                transform: scale(0.95) rotate(-1deg);
+                filter: hue-rotate(-5deg) brightness(0.9);
+            }
+            75% { 
+                transform: scale(1.05) rotate(1deg);
+                filter: hue-rotate(15deg) brightness(1.1);
+            }
+        }
+        
+        @keyframes emberGlow {
+            0%, 100% { 
+                box-shadow: 0 0 20px var(--fire-orange), 0 0 40px var(--burnt-orange);
+            }
+            50% { 
+                box-shadow: 0 0 40px var(--flame-yellow), 0 0 80px var(--fire-orange);
+            }
+        }
+        
+        @keyframes meshPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        .flame-icon {
+            animation: flameFlicker 2s ease-in-out infinite;
+            filter: drop-shadow(0 0 10px var(--fire-orange));
+        }
+        
+        .ember-glow {
+            animation: emberGlow 3s ease-in-out infinite;
+        }
+        
+        .mesh-connection {
+            animation: meshPulse 2s ease-in-out infinite;
+        }
+        
+        /* Glass morphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 107, 26, 0.2);
+            border-radius: 16px;
+        }
+        
+        .glass-panel:hover {
+            border-color: rgba(255, 107, 26, 0.4);
+            box-shadow: 0 20px 40px rgba(255, 107, 26, 0.1);
+        }
+        
+        /* 3D Scene Container */
+        #mesh-visualization {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: grab;
+        }
 
-        {/* Control Dashboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          
-          {/* Network Status */}
-          <div className={`rounded-lg p-6 border ${getStatusColor(networkStatus)}`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Network</h3>
-              <Radio className="w-6 h-6" />
-            </div>
-            <div className="text-2xl font-bold mb-2 capitalize">{networkStatus}</div>
-            <div className="text-sm text-gray-400">
-              Channels: {activeChannels.length}
-            </div>
-          </div>
+        #mesh-visualization:active {
+            cursor: grabbing;
+        }
+        
+        /* Navigation */
+        .nav-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 107, 26, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .nav-item:hover::before {
+            left: 100%;
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(255, 107, 26, 0.2), rgba(255, 69, 0, 0.1));
+            border-left: 4px solid var(--fire-orange);
+            transform: translateX(8px);
+        }
+        
+        /* Data visualization styles */
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 107, 26, 0.15);
+            transition: all 0.4s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: rgba(255, 107, 26, 0.4);
+            box-shadow: 0 25px 50px rgba(255, 107, 26, 0.15);
+        }
 
-          {/* BRYDGET Switchboard Mode */}
-          <div className="bg-orange-900/30 border border-orange-500/50 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-orange-400">Switchboard</h3>
-              <Zap className="w-6 h-6 text-orange-400" />
-            </div>
-            <select 
-              value={meshMode} 
-              onChange={(e) => dispatch({ type: 'SET_MESH_MODE', payload: e.target.value })}
-              className="w-full bg-gray-800 border border-orange-500 rounded p-2 text-orange-400"
-            >
-              <option value="receive">RECEIVE Mode</option>
-              <option value="transmit">TRANSMIT Mode</option>
-              <option value="broadcast">BROADCAST Mode</option>
-            </select>
-            <div className={`mt-2 px-3 py-1 rounded-full text-xs text-center ${getMeshModeColor(meshMode)}`}>
-              {meshMode.toUpperCase()} ACTIVE
-            </div>
-          </div>
+        /* Draggable panel styles */
+        #metric-panel {
+            position: relative;
+            cursor: move;
+            z-index: 20;
+            top: 0;
+            left: 0;
+            will-change: transform;
+            transition: none; /* Disable transition during drag */
+        }
+        
+        /* Terminal simulation */
+        .terminal {
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            border-radius: 8px;
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+        }
 
-          {/* Mesh Devices */}
-          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Mesh Nodes</h3>
-              <div className="flex items-center gap-2">
-                {isScanning && <Clock className="w-4 h-4 animate-spin" />}
-                <Users className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold mb-2">{connectedDevices.length}</div>
-            <div className="text-sm text-gray-400">
-              Auto-scanning {isScanning ? '...' : '✓'}
-            </div>
-          </div>
+        .terminal-output {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
 
-          {/* Protocol Control */}
-          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">FYRE Protocol</h3>
-              <Database className="w-6 h-6" />
-            </div>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={protocolActive}
-                  onChange={(e) => dispatch({ type: 'SET_PROTOCOL_ACTIVE', payload: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm">Mesh Active</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={emergencyMode}
-                  onChange={(e) => dispatch({ type: 'SET_EMERGENCY_MODE', payload: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm text-red-400">Emergency Mode</span>
-              </label>
-            </div>
-          </div>
-        </div>
+        .terminal-input-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
 
-        {/* Main Messenger Interface */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Device Discovery & Contacts */}
-          <div className="space-y-6">
-            
-            {/* Mesh Device Discovery */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Radar className="text-orange-400" />
-                  Mesh Devices
-                </h3>
-                <button
-                  onClick={performMeshScan}
-                  className="px-3 py-1 bg-orange-600 rounded-lg text-sm hover:bg-orange-500"
-                  disabled={isScanning}
-                >
-                  {isScanning ? 'Scanning...' : 'Scan'}
-                </button>
-              </div>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {connectedDevices.map((device) => (
-                  <div key={device.id} className="bg-gray-700/50 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {getDeviceTypeIcon(device.type)}
-                        <div>
-                          <div className="font-semibold text-sm">{device.name}</div>
-                          <div className="text-xs text-gray-400">{device.distance} • {device.strength}%</div>
-                        </div>
-                      </div>
-                      <div className={`px-2 py-1 rounded-full text-xs ${
-                        device.strength > 80 ? 'bg-green-600' : 
-                        device.strength > 60 ? 'bg-yellow-600' : 'bg-red-600'
-                      }`}>
-                        {device.type}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+        .terminal-input-container > span {
+            color: #00ff00;
+            margin-right: 5px;
+        }
+        
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            outline: none;
+            flex-grow: 1;
+        }
+        
+        .terminal-cursor {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        /* System status indicators */
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .status-warning { background: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
+        .status-offline { background: #ff4444; box-shadow: 0 0 10px #ff4444; }
+        
+        /* Responsive design */
+        @media (max-width: 1024px) {
+            .desktop-only { display: none; }
+        }
+        
+        /* Interactive elements */
+        .interactive-node {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .interactive-node:hover {
+            transform: scale(1.1);
+            filter: brightness(1.3);
+        }
+        
+        /* Loading animations */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-spinner {
+            animation: spin 2s linear infinite;
+        }
+        
+        /* Particle effects */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--fire-orange);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0; }
+            10%, 90% { opacity: 1; }
+            50% { transform: translateY(-100px) rotate(180deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Particle Background -->
+    <div class="particles" id="particles"></div>
+    
+    <!-- Main Container -->
+    <div class="min-h-screen relative z-10">
+        
+        <!-- Header -->
+        <header class="p-6 text-center relative">
+            <div class="flame-icon text-8xl mb-4">🔥</div>
+            <h1 class="text-5xl md:text-7xl font-black orbitron mb-2 bg-gradient-to-r from-orange-400 via-red-500 to-yellow-500 bg-clip-text text-transparent">
+                FYRE ARMY
+            </h1>
+            <p class="text-xl md:text-2xl text-orange-300 orbitron tracking-wider">
+                COMPLETE TACTICAL MESH ECOSYSTEM
+            </p>
+            <div class="w-32 h-1 bg-gradient-to-r from-orange-500 to-red-600 mx-auto mt-4"></div>
+        </header>
 
-            {/* Contacts */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Users className="text-orange-400" />
-                Contacts
-              </h3>
-              <div className="space-y-2">
-                {contacts.map((contact) => (
-                  <button
-                    key={contact.id}
-                    onClick={() => dispatch({ type: 'SET_SELECTED_CONTACT', payload: contact.id })}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${
-                      selectedContact === contact.id 
-                        ? 'bg-orange-900/50 border-orange-500' 
-                        : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-semibold">{contact.name}</div>
-                      <div className={`px-2 py-1 rounded-full text-xs ${
-                        contact.status === 'online' ? 'bg-green-600' :
-                        contact.status === 'mesh' ? 'bg-yellow-600' : 'bg-gray-600'
-                      }`}>
-                        {contact.status}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Message Interface */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Message Input */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <MessageCircle className="text-orange-400" />
-                  Send Message
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={broadcastEmergency}
-                    className="px-4 py-2 bg-red-600 rounded-lg text-sm hover:bg-red-500"
-                  >
-                    Emergency Broadcast
-                  </button>
-                  <button
-                    onClick={simulateNetworkEvent}
-                    className="px-4 py-2 bg-blue-600 rounded-lg text-sm hover:bg-blue-500"
-                  >
-                    Simulate Event
-                  </button>
+        <!-- Navigation Bar -->
+        <nav class="glass-panel mx-6 mb-8 p-4">
+            <div class="flex flex-wrap justify-center gap-4">
+                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold active" data-section="overview">
+                    🔥 SYSTEM OVERVIEW
                 </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">
-                    To: {selectedContact ? contacts.find(c => c.id === selectedContact)?.name : 'Broadcast All'}
-                  </label>
+                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="hardware">
+                    ⚡ HARDWARE
                 </div>
+                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="substrate">
+                    🚀 SUBSTRATE
+                </div>
+                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="network">
+                    🌐 MESH NETWORK
+                </div>
+                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="terminal">
+                    💻 LIVE TERMINAL
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="px-6">
+            
+            <!-- System Overview Section -->
+            <section id="overview" class="section active mb-12">
+                <h2 class="text-4xl font-bold orbitron text-orange-300 mb-8 text-center">🔥 SYSTEM ARCHITECTURE</h2>
                 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={currentMessage}
-                    onChange={(e) => dispatch({ type: 'SET_CURRENT_MESSAGE', payload: e.target.value })}
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                    placeholder={emergencyMode ? "Emergency message..." : "Type your message..."}
-                    className={`flex-1 px-4 py-3 rounded-lg border ${
-                      emergencyMode 
-                        ? 'bg-red-900/30 border-red-500 text-red-400' 
-                        : 'bg-gray-700 border-gray-600'
-                    } focus:outline-none focus:border-orange-500`}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 rounded-lg font-semibold hover:from-orange-500 hover:to-red-500 flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    Send
-                  </button>
+                <!-- 3D Mesh Visualization -->
+                <div class="glass-panel p-8 mb-8">
+                    <h3 class="text-2xl font-bold orbitron text-orange-300 mb-4">Live Mesh Network Topology</h3>
+                    <div id="mesh-visualization" class="ember-glow"></div>
+                    <div class="mt-4 text-center">
+                        <button id="add-node" class="px-6 py-2 bg-orange-500 rounded-lg orbitron font-semibold hover:bg-orange-600 transition-colors">
+                            ADD NODE
+                        </button>
+                        <button id="simulate-attack" class="px-6 py-2 bg-red-500 rounded-lg orbitron font-semibold hover:bg-red-600 transition-colors ml-4">
+                            SIMULATE ATTACK
+                        </button>
+                        <button id="emergency-mode" class="px-6 py-2 bg-yellow-500 text-black rounded-lg orbitron font-semibold hover:bg-yellow-600 transition-colors ml-4">
+                            EMERGENCY MODE
+                        </button>
+                        <button id="reset-system" class="px-6 py-2 bg-gray-500 rounded-lg orbitron font-semibold hover:bg-gray-600 transition-colors ml-4">
+                            RESET
+                        </button>
+                    </div>
                 </div>
 
-                <div className="text-sm text-gray-400">
-                  Mode: {meshMode.toUpperCase()} • Channel: {getActiveChannel()} • {emergencyMode ? 'EMERGENCY' : 'Normal'} Priority
-                </div>
-              </div>
-            </div>
-
-            {/* Message History */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Clock className="text-orange-400" />
-                Message Log
-              </h3>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {messages.length === 0 ? (
-                  <div className="text-center text-gray-400 py-8">
+                <!-- System Metrics -->
+                <div id="metric-panel" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card p-6 rounded-2xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator status-online"></div>
+                            <h4 class="text-lg font-bold orbitron">NETWORK STATUS</h4>
+                        </div>
+                        <div class="text-3xl font-bold text-orange-400" id="network-nodes">127</div>
+                        <div class="text-sm text-gray-400">Active Nodes</div>
+                    </div>
                     
+                    <div class="metric-card p-6 rounded-2xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator status-online"></div>
+                            <h4 class="text-lg font-bold orbitron">TEMPORAL SYNC</h4>
+                        </div>
+                        <div class="text-3xl font-bold text-green-400" id="time-accuracy">±47ns</div>
+                        <div class="text-sm text-gray-400">Accuracy</div>
+                    </div>
+                    
+                    <div class="metric-card p-6 rounded-2xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator status-warning"></div>
+                            <h4 class="text-lg font-bold orbitron">THROUGHPUT</h4>
+                        </div>
+                        <div class="text-3xl font-bold text-blue-400" id="throughput">8,945</div>
+                        <div class="text-sm text-gray-400">TPS</div>
+                    </div>
+                    
+                    <div class="metric-card p-6 rounded-2xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator status-online"></div>
+                            <h4 class="text-lg font-bold orbitron">FINALITY</h4>
+                        </div>
+                        <div class="text-3xl font-bold text-purple-400" id="finality">287ms</div>
+                        <div class="text-sm text-gray-400">Average</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Hardware Section -->
+            <section id="hardware" class="section mb-12" style="display: none;">
+                <h2 class="text-4xl font-bold orbitron text-orange-300 mb-8 text-center">⚡ HARDWARE ECOSYSTEM</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Core Anchor Node -->
+                    <div class="glass-panel p-8 interactive-node">
+                        <div class="text-center mb-6">
+                            <div class="text-6xl mb-4">🏗️</div>
+                            <h3 class="text-2xl font-bold orbitron text-orange-300">CORE ANCHOR</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">FPGA:</span>
+                                <span class="text-orange-400">Lattice ECP5-85F</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">SDR:</span>
+                                <span class="text-orange-400">LimeSDR Mini</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Range:</span>
+                                <span class="text-orange-400">2km Rural</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Power:</span>
+                                <span class="text-orange-400">12V DC/PoE++</span>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <div class="text-sm text-gray-400">Unit Cost</div>
+                            <div class="text-2xl font-bold text-orange-400">$285</div>
+                        </div>
+                    </div>
+
+                    <!-- Edge Node -->
+                    <div class="glass-panel p-8 interactive-node">
+                        <div class="text-center mb-6">
+                            <div class="text-6xl mb-4">🌐</div>
+                            <h3 class="text-2xl font-bold orbitron text-orange-300">EDGE NODE</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Processor:</span>
+                                <span class="text-orange-400">RISC-V @100MHz</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Memory:</span>
+                                <span class="text-orange-400">64MB SRAM</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Range:</span>
+                                <span class="text-orange-400">500m Urban</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Battery:</span>
+                                <span class="text-orange-400">24-48hr</span>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <div class="text-sm text-gray-400">Unit Cost</div>
+                            <div class="text-2xl font-bold text-orange-400">$165</div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Node -->
+                    <div class="glass-panel p-8 interactive-node">
+                        <div class="text-center mb-6">
+                            <div class="text-6xl mb-4 flame-icon">📱</div>
+                            <h3 class="text-2xl font-bold orbitron text-orange-300">MOBILE NODE</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Form Factor:</span>
+                                <span class="text-orange-400">80x50x15mm</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Interface:</span>
+                                <span class="text-orange-400">USB-C/App</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Weight:</span>
+                                <span class="text-orange-400">&lt;100g</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Features:</span>
+                                <span class="text-orange-400">Emergency Beacon</span>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <div class="text-sm text-gray-400">Unit Cost</div>
+                            <div class="text-2xl font-bold text-orange-400">$95</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Substrate Section -->
+            <section id="substrate" class="section mb-12" style="display: none;">
+                <h2 class="text-4xl font-bold orbitron text-orange-300 mb-8 text-center">🚀 FYRE SUBSTRATE</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Consensus Mechanism -->
+                    <div class="glass-panel p-8">
+                        <h3 class="text-2xl font-bold orbitron text-orange-300 mb-6">⏰ Temporal Proof of Synchrony</h3>
+                        <div class
