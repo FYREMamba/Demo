@@ -1,487 +1,322 @@
+%%html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FYRE Army - Complete System Demo</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/tone@14.7.58/build/Tone.js"></script>
+    <title>FYRE Mesh Communication Protocol - Interactive Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Tech Neutral -->
+    <!-- Application Structure Plan: A dashboard-style, single-page application with a top navigation bar for quick scrolling. The structure is designed for intuitive exploration, starting with a high-level interactive architecture diagram, followed by a live simulation of the core BRYDGET technology. It then presents comparative data through charts (Competition, Economics) and a timeline (Roadmap), concluding with a tabbed section for deep-dive technical details. This thematic flow from "what it is" to "how it works" to "why it's better" is more engaging and comprehensible for a technical audience than a linear document. -->
+    <!-- Visualization & Content Choices:
+        - Report Info: System Architecture Diagram -> Goal: Organize/Inform -> Viz: Interactive Diagram (HTML/CSS) -> Interaction: Hover/click to reveal details -> Justification: Makes a complex ASCII diagram interactive and easy to understand.
+        - Report Info: Network States & BRYDGET Modes -> Goal: Demonstrate -> Viz: Live Simulation Dashboard -> Interaction: Buttons to change network state, UI updates dynamically -> Justification: Actively shows the protocol's core value (automatic failover) instead of passively describing it.
+        - Report Info: Competitive Analysis -> Goal: Compare -> Viz: Interactive Bar Chart -> Interaction: Dropdown to change metric, chart updates -> Justification: Allows users to focus on specific competitive advantages. -> Library: Chart.js.
+        - Report Info: Economic Model -> Goal: Inform -> Viz: Donut Charts -> Interaction: Static -> Justification: Clear and simple visualization for financial breakdowns. -> Library: Chart.js.
+        - Report Info: Development Roadmap -> Goal: Inform/Change -> Viz: Interactive Timeline -> Interaction: Click phases to see details -> Justification: More engaging presentation of chronological data than a list. -> Library: Vanilla JS.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        :root {
-            --fire-orange: #FF4500;
-            --burnt-orange: #CC5500;
-            --ember-red: #DC2626;
-            --flame-yellow: #FFA500;
-            --dark-void: #0a0a0f;
-            --deep-space: #1a1a2e;
-        }
-        
         body {
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, var(--dark-void) 0%, var(--deep-space) 50%, #16213e 100%);
-            color: white;
             font-family: 'Inter', sans-serif;
-            overflow-x: hidden;
+            background-color: #f8fafc;
         }
-        
-        .orbitron { font-family: 'Orbitron', monospace; }
-        
-        /* Flame animations */
-        @keyframes flameFlicker {
-            0%, 100% { 
-                transform: scale(1) rotate(0deg);
-                filter: hue-rotate(0deg) brightness(1);
-            }
-            25% { 
-                transform: scale(1.1) rotate(2deg);
-                filter: hue-rotate(10deg) brightness(1.2);
-            }
-            50% { 
-                transform: scale(0.95) rotate(-1deg);
-                filter: hue-rotate(-5deg) brightness(0.9);
-            }
-            75% { 
-                transform: scale(1.05) rotate(1deg);
-                filter: hue-rotate(15deg) brightness(1.1);
-            }
-        }
-        
-        @keyframes emberGlow {
-            0%, 100% { 
-                box-shadow: 0 0 20px var(--fire-orange), 0 0 40px var(--burnt-orange);
-            }
-            50% { 
-                box-shadow: 0 0 40px var(--flame-yellow), 0 0 80px var(--fire-orange);
-            }
-        }
-        
-        @keyframes meshPulse {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
-        }
-        
-        .flame-icon {
-            animation: flameFlicker 2s ease-in-out infinite;
-            filter: drop-shadow(0 0 10px var(--fire-orange));
-        }
-        
-        .ember-glow {
-            animation: emberGlow 3s ease-in-out infinite;
-        }
-        
-        .mesh-connection {
-            animation: meshPulse 2s ease-in-out infinite;
-        }
-        
-        /* Glass morphism */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 107, 26, 0.2);
-            border-radius: 16px;
-        }
-        
-        .glass-panel:hover {
-            border-color: rgba(255, 107, 26, 0.4);
-            box-shadow: 0 20px 40px rgba(255, 107, 26, 0.1);
-        }
-        
-        /* 3D Scene Container */
-        #mesh-visualization {
+        .chart-container {
             position: relative;
             width: 100%;
-            height: 600px;
-            border-radius: 16px;
-            overflow: hidden;
-            cursor: grab;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
         }
-
-        #mesh-visualization:active {
-            cursor: grabbing;
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
         }
-        
-        /* Navigation */
-        .nav-item {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .nav-link {
+            transition: color 0.3s;
+        }
+        .nav-link:hover {
+            color: #f97316;
+        }
+        .diagram-box {
+            transition: all 0.3s ease-in-out;
             cursor: pointer;
-            position: relative;
-            overflow: hidden;
         }
-        
-        .nav-item::before {
+        .diagram-box:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            border-color: #f97316;
+        }
+        .timeline-item::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 107, 26, 0.3), transparent);
-            transition: left 0.5s;
-        }
-        
-        .nav-item:hover::before {
-            left: 100%;
-        }
-        
-        .nav-item.active {
-            background: linear-gradient(135deg, rgba(255, 107, 26, 0.2), rgba(255, 69, 0, 0.1));
-            border-left: 4px solid var(--fire-orange);
-            transform: translateX(8px);
-        }
-        
-        /* Data visualization styles */
-        .metric-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 107, 26, 0.15);
-            transition: all 0.4s ease;
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            border-color: rgba(255, 107, 26, 0.4);
-            box-shadow: 0 25px 50px rgba(255, 107, 26, 0.15);
-        }
-
-        /* Draggable panel styles */
-        #metric-panel {
-            position: relative;
-            cursor: move;
-            z-index: 20;
-            top: 0;
-            left: 0;
-            will-change: transform;
-            transition: none; /* Disable transition during drag */
-        }
-        
-        /* Terminal simulation */
-        .terminal {
-            background: #000;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            border-radius: 8px;
-            padding: 20px;
-            height: 300px;
-            overflow-y: auto;
-            font-size: 14px;
-            line-height: 1.4;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .terminal-output {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        .terminal-input-container {
-            display: flex;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .terminal-input-container > span {
-            color: #00ff00;
-            margin-right: 5px;
-        }
-        
-        .terminal-input {
-            background: transparent;
-            border: none;
-            color: #00ff00;
-            outline: none;
-            flex-grow: 1;
-        }
-        
-        .terminal-cursor {
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
-        }
-        
-        /* System status indicators */
-        .status-indicator {
-            width: 12px;
-            height: 12px;
+            left: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
+            background-color: #f97316;
+            border: 3px solid #f8fafc;
         }
-        
-        .status-online { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
-        .status-warning { background: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
-        .status-offline { background: #ff4444; box-shadow: 0 0 10px #ff4444; }
-        
-        /* Responsive design */
-        @media (max-width: 1024px) {
-            .desktop-only { display: none; }
-        }
-        
-        /* Interactive elements */
-        .interactive-node {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .interactive-node:hover {
-            transform: scale(1.1);
-            filter: brightness(1.3);
-        }
-        
-        /* Loading animations */
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        .loading-spinner {
-            animation: spin 2s linear infinite;
-        }
-        
-        /* Particle effects */
-        .particles {
+        .timeline-line {
             position: absolute;
+            left: -21px;
             top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-        
-        .particle {
-            position: absolute;
+            bottom: 0;
             width: 2px;
-            height: 2px;
-            background: var(--fire-orange);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0; }
-            10%, 90% { opacity: 1; }
-            50% { transform: translateY(-100px) rotate(180deg); }
+            background-color: #cbd5e1;
         }
     </style>
 </head>
-<body>
-    <!-- Particle Background -->
-    <div class="particles" id="particles"></div>
-    
-    <!-- Main Container -->
-    <div class="min-h-screen relative z-10">
-        
-        <!-- Header -->
-        <header class="p-6 text-center relative">
-            <div class="flame-icon text-8xl mb-4">🔥</div>
-            <h1 class="text-5xl md:text-7xl font-black orbitron mb-2 bg-gradient-to-r from-orange-400 via-red-500 to-yellow-500 bg-clip-text text-transparent">
-                FYRE ARMY
-            </h1>
-            <p class="text-xl md:text-2xl text-orange-300 orbitron tracking-wider">
-                COMPLETE TACTICAL MESH ECOSYSTEM
-            </p>
-            <div class="w-32 h-1 bg-gradient-to-r from-orange-500 to-red-600 mx-auto mt-4"></div>
-        </header>
+<body class="text-slate-800">
 
-        <!-- Navigation Bar -->
-        <nav class="glass-panel mx-6 mb-8 p-4">
-            <div class="flex flex-wrap justify-center gap-4">
-                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold active" data-section="overview">
-                    🔥 SYSTEM OVERVIEW
-                </div>
-                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="hardware">
-                    ⚡ HARDWARE
-                </div>
-                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="substrate">
-                    🚀 SUBSTRATE
-                </div>
-                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="network">
-                    🌐 MESH NETWORK
-                </div>
-                <div class="nav-item px-6 py-3 rounded-lg orbitron font-semibold" data-section="terminal">
-                    💻 LIVE TERMINAL
-                </div>
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 border-b border-slate-200">
+        <nav class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-slate-900">🔥 <span class="bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent">FYRE</span> Protocol</h1>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="#architecture" class="nav-link font-medium text-slate-600">Architecture</a>
+                <a href="#simulation" class="nav-link font-medium text-slate-600">Simulation</a>
+                <a href="#analysis" class="nav-link font-medium text-slate-600">Analysis</a>
+                <a href="#roadmap" class="nav-link font-medium text-slate-600">Roadmap</a>
+                <a href="#details" class="nav-link font-medium text-slate-600">Technical Details</a>
             </div>
         </nav>
+    </header>
 
-        <!-- Main Content Area -->
-        <main class="px-6">
-            
-            <!-- System Overview Section -->
-            <section id="overview" class="section active mb-12">
-                <h2 class="text-4xl font-bold orbitron text-orange-300 mb-8 text-center">🔥 SYSTEM ARCHITECTURE</h2>
-                
-                <!-- 3D Mesh Visualization -->
-                <div class="glass-panel p-8 mb-8">
-                    <h3 class="text-2xl font-bold orbitron text-orange-300 mb-4">Live Mesh Network Topology</h3>
-                    <div id="mesh-visualization" class="ember-glow"></div>
-                    <div class="mt-4 text-center">
-                        <button id="add-node" class="px-6 py-2 bg-orange-500 rounded-lg orbitron font-semibold hover:bg-orange-600 transition-colors">
-                            ADD NODE
-                        </button>
-                        <button id="simulate-attack" class="px-6 py-2 bg-red-500 rounded-lg orbitron font-semibold hover:bg-red-600 transition-colors ml-4">
-                            SIMULATE ATTACK
-                        </button>
-                        <button id="emergency-mode" class="px-6 py-2 bg-yellow-500 text-black rounded-lg orbitron font-semibold hover:bg-yellow-600 transition-colors ml-4">
-                            EMERGENCY MODE
-                        </button>
-                        <button id="reset-system" class="px-6 py-2 bg-gray-500 rounded-lg orbitron font-semibold hover:bg-gray-600 transition-colors ml-4">
-                            RESET
-                        </button>
+    <main class="max-w-7xl mx-auto px-6 py-12">
+
+        <section id="intro" class="text-center mb-24">
+            <h2 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">A Paradigm Shift in Emergency Communication</h2>
+            <p class="text-lg text-slate-600 max-w-3xl mx-auto">The FYRE Protocol creates a resilient, decentralized communication infrastructure that remains operational when traditional networks fail. Explore the architecture and see its intelligent failover system in action.</p>
+        </section>
+
+        <section id="architecture" class="mb-24 scroll-mt-24">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl font-bold">Interactive System Architecture</h3>
+                <p class="text-slate-600 mt-2">Click or hover on each layer to understand its role in the FYRE ecosystem.</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                <div class="lg:col-span-2 space-y-4">
+                    <div id="diagram-app" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
+                        <h4 class="font-bold text-lg text-center">FYRE MESH PROTOCOL (Application Layer)</h4>
+                    </div>
+                    <div class="flex justify-center text-3xl text-slate-400">↓</div>
+                    <div id="diagram-brydget" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
+                        <h4 class="font-bold text-lg text-center">BRYDGET SWITCHBOARD (Protocol Routing & Management)</h4>
+                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center text-sm">
+                            <div class="bg-blue-100 text-blue-800 p-2 rounded">RECEIVE MODE</div>
+                            <div class="bg-orange-100 text-orange-800 p-2 rounded">TRANSMIT MODE</div>
+                            <div class="bg-red-100 text-red-800 p-2 rounded">BROADCAST MODE</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center text-3xl text-slate-400">↓</div>
+                    <div id="diagram-channel" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
+                        <h4 class="font-bold text-lg text-center">CHANNEL MANAGEMENT LAYER</h4>
+                    </div>
+                    <div class="flex justify-center text-3xl text-slate-400">↓</div>
+                    <div id="diagram-topology" class="diagram-box bg-white p-6 rounded-lg border-2 border-slate-200">
+                        <h4 class="font-bold text-lg text-center">MESH TOPOLOGY LAYER</h4>
                     </div>
                 </div>
-
-                <!-- System Metrics -->
-                <div id="metric-panel" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="metric-card p-6 rounded-2xl">
-                        <div class="flex items-center mb-4">
-                            <div class="status-indicator status-online"></div>
-                            <h4 class="text-lg font-bold orbitron">NETWORK STATUS</h4>
-                        </div>
-                        <div class="text-3xl font-bold text-orange-400" id="network-nodes">127</div>
-                        <div class="text-sm text-gray-400">Active Nodes</div>
-                    </div>
-                    
-                    <div class="metric-card p-6 rounded-2xl">
-                        <div class="flex items-center mb-4">
-                            <div class="status-indicator status-online"></div>
-                            <h4 class="text-lg font-bold orbitron">TEMPORAL SYNC</h4>
-                        </div>
-                        <div class="text-3xl font-bold text-green-400" id="time-accuracy">±47ns</div>
-                        <div class="text-sm text-gray-400">Accuracy</div>
-                    </div>
-                    
-                    <div class="metric-card p-6 rounded-2xl">
-                        <div class="flex items-center mb-4">
-                            <div class="status-indicator status-warning"></div>
-                            <h4 class="text-lg font-bold orbitron">THROUGHPUT</h4>
-                        </div>
-                        <div class="text-3xl font-bold text-blue-400" id="throughput">8,945</div>
-                        <div class="text-sm text-gray-400">TPS</div>
-                    </div>
-                    
-                    <div class="metric-card p-6 rounded-2xl">
-                        <div class="flex items-center mb-4">
-                            <div class="status-indicator status-online"></div>
-                            <h4 class="text-lg font-bold orbitron">FINALITY</h4>
-                        </div>
-                        <div class="text-3xl font-bold text-purple-400" id="finality">287ms</div>
-                        <div class="text-sm text-gray-400">Average</div>
-                    </div>
+                <div id="architecture-details" class="bg-white p-6 rounded-lg border border-slate-200 sticky top-28">
+                    <h4 class="font-bold text-xl mb-2" id="details-title">Architecture Details</h4>
+                    <p class="text-slate-600" id="details-text">Hover over a layer to see its description. This panel provides context for each component of the FYRE protocol, explaining its function and contribution to the overall system's resilience and intelligence.</p>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- Hardware Section -->
-            <section id="hardware" class="section mb-12" style="display: none;">
-                <h2 class="text-4xl font-bold orbitron text-orange-300 mb-8 text-center">⚡ HARDWARE ECOSYSTEM</h2>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Core Anchor Node -->
-                    <div class="glass-panel p-8 interactive-node">
-                        <div class="text-center mb-6">
-                            <div class="text-6xl mb-4">🏗️</div>
-                            <h3 class="text-2xl font-bold orbitron text-orange-300">CORE ANCHOR</h3>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">FPGA:</span>
-                                <span class="text-orange-400">Lattice ECP5-85F</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">SDR:</span>
-                                <span class="text-orange-400">LimeSDR Mini</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Range:</span>
-                                <span class="text-orange-400">2km Rural</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Power:</span>
-                                <span class="text-orange-400">12V DC/PoE++</span>
-                            </div>
-                        </div>
-                        <div class="mt-6 text-center">
-                            <div class="text-sm text-gray-400">Unit Cost</div>
-                            <div class="text-2xl font-bold text-orange-400">$285</div>
+        <section id="simulation" class="mb-24 scroll-mt-24">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl font-bold">BRYDGET Live Simulation</h3>
+                <p class="text-slate-600 mt-2">Witness the core innovation. Simulate network events and watch how BRYDGET automatically adapts.</p>
+            </div>
+            <div class="bg-white p-8 rounded-lg border border-slate-200 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="md:col-span-1">
+                        <h4 class="font-bold text-lg mb-4">Simulate Network Event</h4>
+                        <div class="space-y-3">
+                            <button onclick="simulateNetworkEvent('stable')" class="w-full text-left p-4 rounded-lg bg-green-100 text-green-800 font-medium">Set to: Stable ✅</button>
+                            <button onclick="simulateNetworkEvent('degraded')" class="w-full text-left p-4 rounded-lg bg-yellow-100 text-yellow-800 font-medium">Set to: Degraded ⚠️</button>
+                            <button onclick="simulateNetworkEvent('outage')" class="w-full text-left p-4 rounded-lg bg-red-100 text-red-800 font-medium">Set to: Outage ❌</button>
+                            <button onclick="simulateNetworkEvent('recovering')" class="w-full text-left p-4 rounded-lg bg-blue-100 text-blue-800 font-medium">Set to: Recovering 🔄</button>
                         </div>
                     </div>
-
-                    <!-- Edge Node -->
-                    <div class="glass-panel p-8 interactive-node">
-                        <div class="text-center mb-6">
-                            <div class="text-6xl mb-4">🌐</div>
-                            <h3 class="text-2xl font-bold orbitron text-orange-300">EDGE NODE</h3>
-                        </div>
+                    <div class="md:col-span-2 bg-slate-50 p-6 rounded-lg">
+                        <h4 class="font-bold text-lg mb-4">System Status</h4>
                         <div class="space-y-4">
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Processor:</span>
-                                <span class="text-orange-400">RISC-V @100MHz</span>
+                            <div>
+                                <span class="font-semibold">Network State:</span>
+                                <span id="sim-status" class="font-bold px-3 py-1 rounded-full text-sm ml-2">STABLE</span>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Memory:</span>
-                                <span class="text-orange-400">64MB SRAM</span>
+                            <div>
+                                <span class="font-semibold">BRYDGET Mode:</span>
+                                <span id="sim-mode" class="font-bold ml-2">RECEIVE (Standby)</span>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Range:</span>
-                                <span class="text-orange-400">500m Urban</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Battery:</span>
-                                <span class="text-orange-400">24-48hr</span>
+                            <div>
+                                <span class="font-semibold">Active Channels:</span>
+                                <div id="sim-channels" class="mt-2 flex flex-wrap gap-2"></div>
                             </div>
                         </div>
-                        <div class="mt-6 text-center">
-                            <div class="text-sm text-gray-400">Unit Cost</div>
-                            <div class="text-2xl font-bold text-orange-400">$165</div>
-                        </div>
-                    </div>
-
-                    <!-- Mobile Node -->
-                    <div class="glass-panel p-8 interactive-node">
-                        <div class="text-center mb-6">
-                            <div class="text-6xl mb-4 flame-icon">📱</div>
-                            <h3 class="text-2xl font-bold orbitron text-orange-300">MOBILE NODE</h3>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Form Factor:</span>
-                                <span class="text-orange-400">80x50x15mm</span>
+                        <div class="mt-6 border-t border-slate-200 pt-4">
+                            <h4 class="font-semibold mb-2">System Log:</h4>
+                            <div id="sim-log" class="text-sm text-slate-600 h-24 overflow-y-auto bg-white p-2 rounded">
+                                <div>System initialized. Network is stable.</div>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Interface:</span>
-                                <span class="text-orange-400">USB-C/App</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Weight:</span>
-                                <span class="text-orange-400">&lt;100g</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-300">Features:</span>
-                                <span class="text-orange-400">Emergency Beacon</span>
-                            </div>
-                        </div>
-                        <div class="mt-6 text-center">
-                            <div class="text-sm text-gray-400">Unit Cost</div>
-                            <div class="text-2xl font-bold text-orange-400">$95</div>
                         </div>
                     </div>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- Substrate Section -->
-            <section id="substrate" class="section mb-12" style="display: none;">
-                <h2 class="text-4xl font-bold orbitron text-orange-300 mb-8 text-center">🚀 FYRE SUBSTRATE</h2>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <!-- Consensus Mechanism -->
-                    <div class="glass-panel p-8">
-                        <h3 class="text-2xl font-bold orbitron text-orange-300 mb-6">⏰ Temporal Proof of Synchrony</h3>
-                        <div class
+        <section id="analysis" class="mb-24 scroll-mt-24">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl font-bold">Comparative & Economic Analysis</h3>
+                <p class="text-slate-600 mt-2">See how FYRE stacks up against existing solutions and explore the economic model.</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg border border-slate-200">
+                    <h4 class="font-bold text-xl mb-4">Competitive Landscape</h4>
+                    <div class="mb-4">
+                        <label for="metric-select" class="block text-sm font-medium text-slate-700">Compare by:</label>
+                        <select id="metric-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md">
+                            <option value="cost">Cost per Node ($)</option>
+                            <option value="latency">Latency (ms)</option>
+                            <option value="setup">Setup Time (minutes)</option>
+                            <option value="battery">Battery Life (hours)</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="competitiveChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg border border-slate-200">
+                    <h4 class="font-bold text-xl mb-4">Economic Model</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <h5 class="font-semibold text-center mb-2">Development Cost Breakdown</h5>
+                            <div class="chart-container h-64">
+                                <canvas id="costChart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-center mb-2">Revenue Model</h5>
+                             <div class="chart-container h-64">
+                                <canvas id="revenueChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="roadmap" class="mb-24 scroll-mt-24">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl font-bold">Development Roadmap</h3>
+                <p class="text-slate-600 mt-2">Follow our journey from core protocol to global deployment.</p>
+            </div>
+            <div class="relative pl-8">
+                <div class="timeline-line"></div>
+                <div class="space-y-12">
+                    <div class="timeline-item relative">
+                        <h4 class="font-bold text-lg">Phase 1: Core Protocol (Completed)</h4>
+                        <p class="text-slate-600">✅ BRYDGET switchboard, mesh discovery, failover implementation, and API framework.</p>
+                    </div>
+                    <div class="timeline-item relative">
+                        <h4 class="font-bold text-lg">Phase 2: Production Hardening (Next 4-6 weeks)</h4>
+                        <p class="text-slate-600">🔄 Security audit, performance stress testing, mobile app development, and hardware reference implementation.</p>
+                    </div>
+                    <div class="timeline-item relative">
+                        <h4 class="font-bold text-lg">Phase 3: Network Deployment (6-12 months)</h4>
+                        <p class="text-slate-600">📋 Installation of core anchor nodes, community pilots, and integration with emergency services.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="details" class="scroll-mt-24">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl font-bold">Technical Deep Dive</h3>
+                <p class="text-slate-600 mt-2">Explore the underlying technology, security protocols, and performance specifications.</p>
+            </div>
+            <div class="bg-white rounded-lg border border-slate-200">
+                <div class="border-b border-slate-200">
+                    <nav id="tabs-nav" class="-mb-px flex space-x-6 px-6" aria-label="Tabs">
+                        <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-orange-500 text-orange-600">Security</button>
+                        <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">Performance</button>
+                        <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">API & Data</button>
+                    </nav>
+                </div>
+                <div id="tabs-content" class="p-6">
+                    <div class="tab-content">
+                        <h4 class="font-bold text-lg mb-2">Encryption & Privacy</h4>
+                        <ul class="list-disc list-inside text-slate-600 space-y-2">
+                            <li><strong>End-to-End Encryption:</strong> AES-256 for all message content.</li>
+                            <li><strong>Key Exchange:</strong> ECDH (Elliptic Curve Diffie-Hellman) for secure mesh discovery.</li>
+                            <li><strong>Zero-Knowledge Routing:</strong> Intermediate nodes cannot read message content.</li>
+                            <li><strong>Decentralized Identity:</strong> No central authority required for device authentication.</li>
+                        </ul>
+                    </div>
+                    <div class="tab-content hidden">
+                        <h4 class="font-bold text-lg mb-2">System Requirements & Metrics</h4>
+                         <ul class="list-disc list-inside text-slate-600 space-y-2">
+                            <li><strong>Message Latency:</strong> &lt;500ms direct, &lt;2s mesh routing.</li>
+                            <li><strong>Discovery Time:</strong> New devices detected within 10 seconds.</li>
+                            <li><strong>Battery Impact:</strong> &lt;5% additional drain in RECEIVE mode.</li>
+                            <li><strong>Scalability:</strong> Up to 50 mesh nodes per local network, with core anchors extending range up to 10km.</li>
+                        </ul>
+                    </div>
+                     <div class="tab-content hidden">
+                        <h4 class="font-bold text-lg mb-2">Integration & Data Formats</h4>
+                        <p class="text-slate-600 mb-4">FYRE is designed for easy integration with external services like Courier for multi-channel notifications and real-time data sources for environmental monitoring.</p>
+                        <pre class="bg-slate-100 text-sm p-4 rounded-md overflow-x-auto"><code class="language-js">const sensorDataFormat = {
+  deviceId: "fyre-sensor-001",
+  timestamp: Date.now(),
+  location: { lat: 41.8781, lng: -87.6298 },
+  readings: { ... },
+  networkStatus: {
+    primaryChannel: "wifi",
+    signalStrength: 85
+  }
+};</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-100 border-t border-slate-200 mt-24">
+        <div class="max-w-7xl mx-auto px-6 py-8 text-center text-slate-500">
+            <p class="font-bold">FYRE Army Development Team</p>
+            <p class="text-sm">"Fixing shit since Silicon Valley won't"</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const smoothScrollLinks = document.querySelectorAll('a[href^="#"]');
+            smoothScrollLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    if (targetElement) {
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+
+            const architectureDetails = {
+                app: {
+                    title: 'Applica'
